@@ -1,0 +1,89 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Packaging and build output
+build/
+dist/
+*.egg-info/
+
+# Native build output
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+Makefile
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Runtime logs and temporary files
+logs/
+run/
+tmp/
+*.log
+*.tmp
+*.temp
+*.pid
+
+# MQTT broker runtime data
+mosquitto.db
+mosquitto-data/
+mosquitto-log/
+*.db
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Sensitive configuration and generated secrets
+config/psk*.json
+config/*.local.*
+config/*secret*
+config/*credential*
+!config/*.example
+!config/README.md
+!config/.gitkeep
+
+# Certificates and private keys generated for local testing
+certs/*
+!certs/*.example
+!certs/README.md
+!certs/.gitkeep
+
+# Test reports and benchmark output
+reports/
+results/
+captures/
+*.csv
+*.jsonl
+coverage.xml
+*.prof
+*.perf
