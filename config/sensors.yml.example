@@ -1,0 +1,37 @@
+sensors:
+  temperature_sensor_01:
+    type: temperature
+    unit: C
+    location: mine-A-01
+    interval_seconds: 1.0
+    client_cert: certs/temperature_sensor_01.crt
+    client_key: certs/temperature_sensor_01.key
+  gas_sensor_01:
+    type: gas
+    unit: "%LEL"
+    location: mine-A-03
+    interval_seconds: 1.0
+    client_cert: certs/gas_sensor_01.crt
+    client_key: certs/gas_sensor_01.key
+  gas_sensor_02:
+    type: gas
+    unit: "%LEL"
+    location: mine-B-02
+    interval_seconds: 1.0
+    client_cert: certs/gas_sensor_02.crt
+    client_key: certs/gas_sensor_02.key
+
+thresholds:
+  gas:
+    warning: 1.0
+    critical: 1.5
+  temperature:
+    warning: 45.0
+    critical: 60.0
+
+mqtt:
+  host: localhost
+  port: 8883
+  ca_file: certs/ca.crt
+  center_cert: certs/center.crt
+  center_key: certs/center.key
