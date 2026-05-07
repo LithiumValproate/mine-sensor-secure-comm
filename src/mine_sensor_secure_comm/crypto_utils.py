@@ -134,7 +134,7 @@ def decrypt_payload(psk_hex: str, payload: dict[str, Any]) -> dict[str, Any]:
     required = {'version', 'sensor_id', 'sensor_type', 'seq', 'timestamp_ms', 'nonce', 'ciphertext', 'tag'}
     missing = required.difference(payload)
     if missing:
-        raise ValueError(f'missing encrypted payload fields: {sorted(missing)}')
+        raise ValueError(f"missing encrypted payload fields: {sorted(missing)}")
 
     version = int(payload['version'])
     sensor_id = str(payload['sensor_id'])

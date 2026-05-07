@@ -42,8 +42,8 @@ def main() -> None:
     client = make_tls_client(
         client_id=args.sensor_id,
         ca_file=mqtt_config.get('ca_file', 'certs/ca.crt'),
-        cert_file=sensor.get('client_cert', f'certs/{args.sensor_id}.crt'),
-        key_file=sensor.get('client_key', f'certs/{args.sensor_id}.key'),
+        cert_file=sensor.get('client_cert', f"certs/{args.sensor_id}.crt"),
+        key_file=sensor.get('client_key', f"certs/{args.sensor_id}.key"),
     )
 
     offline_payload = encode_json({

@@ -52,7 +52,7 @@ def main() -> None:
     def on_connect(client, userdata, flags, reason_code, properties):
         _ = userdata, flags, properties
         if reason_code != 0:
-            print(f'center connect failed: {reason_code}')
+            print(f"center connect failed: {reason_code}")
             return
         client.subscribe('mine/+/data', qos=1)
         client.subscribe('mine/+/status', qos=1)

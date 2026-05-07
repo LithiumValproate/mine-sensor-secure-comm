@@ -29,14 +29,14 @@ def decode_json(payload: bytes | str) -> dict[str, Any]:
 
 def data_topic(sensor_id: str) -> str:
     """Return sensor data topic."""
-    return f'mine/{sensor_id}/data'
+    return f"mine/{sensor_id}/data"
 
 
 def status_topic(sensor_id: str) -> str:
     """Return sensor status topic."""
-    return f'mine/{sensor_id}/status'
+    return f"mine/{sensor_id}/status"
 
 
 def alert_topic(sensor_id: str) -> str:
     """Return sensor alert topic."""
-    return f'mine/{sensor_id}/alert'
+    return f"mine/{sensor_id}/alert"
