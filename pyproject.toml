@@ -3,7 +3,7 @@ name = "mine-sensor-secure-comm"
 version = "0.1.0"
 description = "MQTT over TLS secure communication prototype for mine sensor nodes."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.14"
 dependencies = [
     "cryptography>=42.0.0",
     "paho-mqtt>=2.0.0",
