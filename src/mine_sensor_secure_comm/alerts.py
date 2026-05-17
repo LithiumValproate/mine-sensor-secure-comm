@@ -33,7 +33,7 @@ def threshold_alert(
             sensor_id=sensor_id,
             severity='high',
             message=f"{sensor_type} critical threshold exceeded",
-            details={'value':value, 'threshold':critical},
+            details={'value': value, 'threshold': critical},
         )
     if warning is not None and value >= warning:
         return Alert(
@@ -41,6 +41,6 @@ def threshold_alert(
             sensor_id=sensor_id,
             severity='medium',
             message=f"{sensor_type} warning threshold exceeded",
-            details={'value':value, 'threshold':warning},
+            details={'value': value, 'threshold': warning},
         )
     return None

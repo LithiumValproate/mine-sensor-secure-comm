@@ -16,8 +16,6 @@
 
 - 推荐 Python 3.12。
 - 支持 Python 3.10、3.11、3.12、3.13。
-- 不支持 Python 3.6；代码和依赖使用了 Python 3.10+ 特性。
-- 不建议使用 Python 3.14；项目元数据限制为 `>=3.10,<3.14`，避免依赖兼容性风险。
 - Mosquitto Broker，需支持 TLS。
 - OpenSSL，用于生成本地测试证书。
 
@@ -71,20 +69,10 @@ mine-sensor --sensor-id gas_sensor_02 --sensor-config config/sensors.yml --psk-c
 
 ## 使用 uv
 
-如果小组统一使用 `uv`，推荐锁定 Python 3.12：
-
 ```bash
 uv python install 3.12
 uv sync --python 3.12 --extra test
 uv run pytest
-```
-
-已有 `.venv` 不能原地切换 Python 主版本。需要切换时，删除旧环境后重建：
-
-```bash
-rm -rf .venv
-uv venv --python 3.12
-uv sync --extra test
 ```
 
 ## 测试
