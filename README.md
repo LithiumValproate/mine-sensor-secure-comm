@@ -31,8 +31,16 @@ Windows、Linux 和 macOS 的完整本地部署说明见 [doc/deployment.md](doc
 
 2. 生成本地测试证书：
 
+   macOS / Linux：
+
    ```bash
    ./scripts/generate_certs.sh
+   ```
+
+   Windows：
+
+   ```bat
+   scripts\generate_certs.bat
    ```
 
 3. 复制示例配置：
@@ -117,7 +125,7 @@ mine-bench --psk-config config/psk.json --count 1000
 
 ### 客户端连接被拒绝
 
-确认已运行 `./scripts/generate_certs.sh`，并检查 `config/sensors.yml` 中的证书路径是否存在。mTLS 模式下，传感器和地面中心都必须使用由同一 CA 签发的客户端证书。
+确认已运行对应平台的证书生成脚本（macOS / Linux 为 `./scripts/generate_certs.sh`，Windows 为 `scripts\generate_certs.bat`），并检查 `config/sensors.yml` 中的证书路径是否存在。mTLS 模式下，传感器和地面中心都必须使用由同一 CA 签发的客户端证书。
 
 ### 地面中心解密失败
 

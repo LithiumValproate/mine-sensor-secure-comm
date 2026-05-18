@@ -19,8 +19,8 @@
 
 1. 安装 Python 3.12，并勾选 “Add Python to PATH”。最低可使用 Python 3.10，不建议使用 3.14。
 2. 安装 Mosquitto for Windows。
-3. 安装 Git for Windows，用 Git Bash 运行本项目中的 Bash 脚本。
-4. 确认 OpenSSL 可用。Git Bash 通常会附带 OpenSSL；也可以单独安装 OpenSSL for Windows。
+3. 确认 OpenSSL 可用；可以单独安装 OpenSSL for Windows。
+4. 如需运行 Bash 脚本，可额外安装 Git for Windows 或使用 WSL。
 
 在 PowerShell 中检查：
 
@@ -44,7 +44,7 @@ openssl version
 & "C:\Program Files\mosquitto\mosquitto.exe" -h
 ```
 
-证书生成脚本 `scripts/generate_certs.sh` 需要在 Git Bash 或 WSL 中运行。
+证书生成可直接在命令提示符中运行 `scripts\generate_certs.bat`；也可以在 Git Bash 或 WSL 中运行 `scripts/generate_certs.sh`。
 
 ### 1.2 Linux
 
@@ -125,11 +125,19 @@ uv run pytest
 
 在项目根目录运行：
 
+macOS / Linux：
+
 ```bash
 ./scripts/generate_certs.sh
 ```
 
-Windows 下请在 Git Bash 或 WSL 中运行该命令。PowerShell 默认不能直接执行 `.sh` 脚本。
+Windows 命令提示符：
+
+```bat
+scripts\generate_certs.bat
+```
+
+Windows 也可以在 Git Bash 或 WSL 中继续使用 `.sh` 脚本。
 
 脚本会在 `certs/` 目录生成以下材料：
 
