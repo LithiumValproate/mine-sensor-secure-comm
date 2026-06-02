@@ -29,7 +29,7 @@ def make_tls_client(
 def certificate_common_name(client: mqtt.Client) -> str | None:
     """Best-effort extraction of peer certificate identity.
 
-    Paho does not expose the client certificate subject from received publish
+    Paho does not expose the client certificate subject from received published
     callbacks. Mosquitto can map certificate CN to username, but the Python
     callback does not receive that username either. Runtime identity checks
     therefore use the payload identity unless an integration layer provides
