@@ -1,4 +1,4 @@
-"""MQTT sensor node publisher."""
+"""MQTT 传感器节点发布端。"""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from .sensor_sim import SensorNodeSimulator, SensorProfile
 
 
 def main() -> None:
-    """Run one simulated sensor node."""
+    """运行一个模拟传感器节点。"""
     parser = argparse.ArgumentParser()
     parser.add_argument('--sensor-id', required=True)
     parser.add_argument('--sensor-config', default='config/sensors.yml')

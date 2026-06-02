@@ -9,7 +9,9 @@ dependencies = [
     "paho-mqtt>=2.0.0",
     "PyYAML>=6.0.0",
     "mosquito>=0.3.0",
-    "pyopenssl>=25.0.0"
+    "pyopenssl>=25.0.0",
+    "ruff>=0.15.0",
+    "ty",
 ]
 
 [project.optional-dependencies]

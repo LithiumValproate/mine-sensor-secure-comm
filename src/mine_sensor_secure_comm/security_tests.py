@@ -1,4 +1,4 @@
-"""Local security scenario runner."""
+"""本地安全场景运行器。"""
 
 from __future__ import annotations
 
@@ -11,7 +11,11 @@ from .message import now_ms
 
 
 def run_scenarios(psk_map: dict[str, str]) -> dict[str, str]:
-    """Run replay, timestamp, identity, and decrypt-failure scenarios."""
+    """运行重放、时间戳、身份和解密失败场景。
+
+    Args:
+        psk_map: 传感器编号到 PSK 十六进制字符串的映射。
+    """
     sensor_id = 'gas_sensor_01'
     core = GroundCenterCore(
         psk_map=psk_map,
@@ -26,12 +30,18 @@ def run_scenarios(psk_map: dict[str, str]) -> dict[str, str]:
         sensor_type='gas',
         seq=1,
         timestamp_ms=timestamp_ms,
-        plaintext={'value': 0.7, 'unit': '%LEL', 'battery': 99, 'location': 'mine-A-03', 'sample_time_ms': timestamp_ms},
+        plaintext={'value': 0.7, 'unit': '%LEL', 'battery': 99, 'location': 'mine-A-03',
+                   'sample_time_ms': timestamp_ms},
         boot_random=boot_random,
     ).to_dict()
 
     results: dict[str, str] = {}
-    results['valid'] = str(core.process_data_message(valid_payload, certificate_identity=sensor_id, receive_time_ms=timestamp_ms).accepted)
+    results['valid'] = str(
+        core.process_data_message(
+            valid_payload,
+            certificate_identity=sensor_id,
+            receive_time_ms=timestamp_ms,
+        ).accepted)
     replay = core.process_data_message(valid_payload, certificate_identity=sensor_id, receive_time_ms=timestamp_ms)
     results['replay'] = replay.alerts[0].code
 
@@ -41,7 +51,8 @@ def run_scenarios(psk_map: dict[str, str]) -> dict[str, str]:
     stale = core.process_data_message(stale_payload, certificate_identity=sensor_id, receive_time_ms=timestamp_ms)
     results['stale'] = stale.alerts[0].code
 
-    forged = core.process_data_message(valid_payload, certificate_identity='temperature_sensor_01', receive_time_ms=timestamp_ms)
+    forged = core.process_data_message(valid_payload, certificate_identity='temperature_sensor_01',
+                                       receive_time_ms=timestamp_ms)
     results['forged_identity'] = forged.alerts[0].code
 
     tampered_payload = dict(valid_payload)
@@ -53,7 +64,7 @@ def run_scenarios(psk_map: dict[str, str]) -> dict[str, str]:
 
 
 def main() -> None:
-    """Run security scenarios against center core."""
+    """针对中心端核心运行安全场景。"""
     parser = argparse.ArgumentParser()
     parser.add_argument('--psk-config', default='config/psk.json')
     args = parser.parse_args()

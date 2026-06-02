@@ -1,4 +1,4 @@
-"""Ground center validation and alert logic."""
+"""地面中心校验和告警逻辑。"""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from .replay_guard import ReplayGuard
 
 @dataclass
 class ProcessResult:
-    """Result of processing one MQTT message."""
+    """处理单条 MQTT 消息的结果。"""
 
     accepted: bool
     plaintext: dict[str, Any] | None = None
@@ -20,7 +20,7 @@ class ProcessResult:
 
 
 class GroundCenterCore:
-    """Pure validation core used by MQTT callbacks and tests."""
+    """供 MQTT 回调和测试复用的纯校验核心。"""
 
     def __init__(
             self,
@@ -30,6 +30,14 @@ class GroundCenterCore:
             thresholds: dict[str, dict[str, float]],
             replay_guard: ReplayGuard | None = None,
     ) -> None:
+        """初始化地面中心校验核心。
+
+        Args:
+            psk_map: 传感器编号到 PSK 十六进制字符串的映射。
+            sensor_types: 传感器编号到传感器类型的映射。
+            thresholds: 按传感器类型组织的阈值配置。
+            replay_guard: 可选的重放防护器实例。
+        """
         self.psk_map = psk_map
         self.sensor_types = sensor_types
         self.thresholds = thresholds
@@ -42,7 +50,13 @@ class GroundCenterCore:
             certificate_identity: str | None,
             receive_time_ms: int,
     ) -> ProcessResult:
-        """Validate, decrypt, and inspect one encrypted data payload."""
+        """校验、解密并检查一条加密数据负载。
+
+        Args:
+            payload: MQTT 数据消息中的加密负载。
+            certificate_identity: 来自证书的传感器身份；无法获取时为 None。
+            receive_time_ms: 中心端接收消息的时间戳，单位为毫秒。
+        """
         sensor_id = str(payload.get('sensor_id', ''))
         sensor_type = str(payload.get('sensor_type', ''))
         alerts: list[Alert] = []
@@ -84,7 +98,11 @@ class GroundCenterCore:
         return ProcessResult(accepted=True, plaintext=plaintext, alerts=alerts)
 
     def process_status_message(self, payload: dict[str, Any]) -> ProcessResult:
-        """Process online/offline status messages."""
+        """处理在线/离线状态消息。
+
+        Args:
+            payload: MQTT 状态消息负载。
+        """
         sensor_id = str(payload.get('sensor_id', ''))
         status = payload.get('status')
         if status == 'offline':
@@ -101,6 +119,13 @@ class GroundCenterCore:
         return ProcessResult(accepted=True, plaintext=payload)
 
     def _reject(self, code: str, sensor_id: str, details: dict[str, Any]) -> ProcessResult:
+        """构造拒绝处理结果。
+
+        Args:
+            code: 拒绝原因或告警代码。
+            sensor_id: 相关传感器编号；为空时会记录为 unknown。
+            details: 拒绝原因的结构化详情。
+        """
         return ProcessResult(
             accepted=False,
             alerts=[Alert(

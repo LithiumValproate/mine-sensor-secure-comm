@@ -1,4 +1,4 @@
-"""Alert model and threshold checks."""
+"""告警模型和阈值检查。"""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 
 @dataclass(frozen=True)
 class Alert:
-    """Center-side alert event."""
+    """中心端告警事件。"""
 
     code: str
     sensor_id: str
@@ -23,7 +23,15 @@ def threshold_alert(
         value: float,
         thresholds: dict[str, dict[str, float]],
 ) -> Alert | None:
-    """Return a threshold alert for a decrypted sensor reading."""
+    """
+    根据解密后的传感器读数返回阈值告警。
+    
+    Args:
+        sensor_id: 传感器编号。
+        sensor_type: 传感器类型，用于查找对应阈值。
+        value: 解密后的传感器数值。
+        thresholds: 按传感器类型组织的 warning/critical 阈值配置。
+    """
     sensor_threshold = thresholds.get(sensor_type, {})
     critical = sensor_threshold.get('critical')
     warning = sensor_threshold.get('warning')

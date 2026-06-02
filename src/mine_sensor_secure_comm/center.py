@@ -1,4 +1,4 @@
-"""Ground center MQTT subscriber."""
+"""地面中心 MQTT 订阅端。"""
 
 from __future__ import annotations
 
@@ -12,7 +12,12 @@ from .mqtt_runtime import certificate_common_name, make_tls_client
 
 
 def build_core(sensor_config_path: str, psk_config_path: str) -> GroundCenterCore:
-    """Build center validation core from config files."""
+    """根据配置文件构建中心端校验核心。
+
+    Args:
+        sensor_config_path: 传感器 YAML 配置文件路径。
+        psk_config_path: PSK JSON 配置文件路径。
+    """
     sensor_config = load_yaml(sensor_config_path)
     sensors = sensor_config.get('sensors', {})
     thresholds = sensor_config.get('thresholds', {})
@@ -28,7 +33,7 @@ def build_core(sensor_config_path: str, psk_config_path: str) -> GroundCenterCor
 
 
 def main() -> None:
-    """Run ground center MQTT subscriber."""
+    """运行地面中心 MQTT 订阅端。"""
     parser = argparse.ArgumentParser()
     parser.add_argument('--sensor-config', default='config/sensors.yml')
     parser.add_argument('--psk-config', default='config/psk.json')
@@ -50,6 +55,15 @@ def main() -> None:
     )
 
     def on_connect(client, userdata, flags, reason_code, properties):
+        """处理 MQTT 连接完成回调。
+
+        Args:
+            client: 当前 MQTT 客户端实例。
+            userdata: paho-mqtt 传入的用户数据。
+            flags: MQTT 连接标志。
+            reason_code: 连接结果码。
+            properties: MQTT v5 连接属性。
+        """
         _ = userdata, flags, properties
         if reason_code != 0:
             print(f"center connect failed: {reason_code}")
@@ -59,6 +73,13 @@ def main() -> None:
         print('ground center subscribed to mine/+/data and mine/+/status')
 
     def on_message(client, userdata, msg):
+        """处理 MQTT 消息到达回调。
+
+        Args:
+            client: 当前 MQTT 客户端实例。
+            userdata: paho-mqtt 传入的用户数据。
+            msg: 收到的 MQTT 消息对象。
+        """
         _ = userdata
         try:
             payload = decode_json(msg.payload)

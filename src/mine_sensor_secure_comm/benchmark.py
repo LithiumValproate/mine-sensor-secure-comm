@@ -1,4 +1,4 @@
-"""Latency and crypto overhead benchmark helpers."""
+"""延迟和加密开销基准测试辅助函数。"""
 
 from __future__ import annotations
 
@@ -13,7 +13,11 @@ from .sensor_sim import SensorNodeSimulator, SensorProfile
 
 
 def summarize_latencies(latencies_ns: list[int]) -> dict[str, Any]:
-    """Return latency summary in milliseconds."""
+    """返回以毫秒为单位的延迟统计。
+
+    Args:
+        latencies_ns: 以纳秒为单位记录的延迟列表。
+    """
     if not latencies_ns:
         return {'count': 0}
     values_ms = sorted(value / 1_000_000 for value in latencies_ns)
@@ -29,13 +33,23 @@ def summarize_latencies(latencies_ns: list[int]) -> dict[str, Any]:
 
 
 def percentile(sorted_values: list[float], percent: int) -> float:
-    """Return nearest-rank percentile."""
+    """返回最近秩百分位数。
+
+    Args:
+        sorted_values: 已按升序排列的数值列表。
+        percent: 要计算的百分位，例如 50、95 或 99。
+    """
     index = max(0, min(len(sorted_values) - 1, round((percent / 100) * (len(sorted_values) - 1))))
     return sorted_values[index]
 
 
 def run_local_crypto_benchmark(psk_hex: str, count: int) -> dict[str, Any]:
-    """Measure local application-layer encrypt/decrypt overhead."""
+    """测量本地应用层加解密开销。
+
+    Args:
+        psk_hex: 传感器 PSK 的十六进制字符串。
+        count: 要执行的加解密轮数。
+    """
     simulator = SensorNodeSimulator(
         SensorProfile('gas_sensor_01', 'gas', '%LEL', 'mine-A-03'),
         psk_hex,
@@ -63,7 +77,7 @@ def run_local_crypto_benchmark(psk_hex: str, count: int) -> dict[str, Any]:
 
 
 def main() -> None:
-    """Run local application-layer crypto benchmark."""
+    """运行本地应用层加密基准测试。"""
     parser = argparse.ArgumentParser()
     parser.add_argument('--psk-config', default='config/psk.json')
     parser.add_argument('--sensor-id', default='gas_sensor_01')

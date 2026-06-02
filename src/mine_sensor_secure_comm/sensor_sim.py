@@ -1,4 +1,4 @@
-"""Sensor reading simulation and encrypted payload creation."""
+"""传感器读数模拟和加密负载生成。"""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from .message import now_ms
 
 @dataclass
 class SensorProfile:
-    """Static sensor configuration."""
+    """静态传感器配置。"""
 
     sensor_id: str
     sensor_type: str
@@ -22,16 +22,22 @@ class SensorProfile:
 
 
 class SensorNodeSimulator:
-    """Generate readings and encrypted MQTT payloads for one sensor."""
+    """为单个传感器生成读数和加密 MQTT 负载。"""
 
     def __init__(self, profile: SensorProfile, psk_hex: str) -> None:
+        """初始化传感器模拟器。
+
+        Args:
+            profile: 传感器静态配置。
+            psk_hex: 传感器 PSK 的十六进制字符串。
+        """
         self.profile = profile
         self.psk_hex = psk_hex
         self.seq = 0
         self.boot_random = new_boot_random()
 
     def next_plain_reading(self) -> dict[str, Any]:
-        """Generate one simulated reading."""
+        """生成一条模拟读数。"""
         if self.profile.sensor_type == 'gas':
             value = round(max(0.0, random.gauss(0.8, 0.35)), 3)
         elif self.profile.sensor_type == 'temperature':
@@ -47,7 +53,7 @@ class SensorNodeSimulator:
         }
 
     def next_encrypted_payload(self) -> EncryptedPayload:
-        """Generate and encrypt one reading."""
+        """生成并加密一条读数。"""
         timestamp_ms = now_ms()
         payload = encrypt_payload(
             psk_hex=self.psk_hex,

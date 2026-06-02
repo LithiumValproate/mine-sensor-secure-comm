@@ -1,4 +1,4 @@
-"""Configuration loading helpers."""
+"""配置加载辅助函数。"""
 
 from __future__ import annotations
 
@@ -10,7 +10,11 @@ import yaml
 
 
 def load_json(path: str | Path) -> dict[str, Any]:
-    """Load a JSON object from disk."""
+    """从磁盘加载 JSON 对象。
+
+    Args:
+        path: JSON 配置文件路径。
+    """
     with Path(path).open('r', encoding='utf-8') as config_file:
         data = json.load(config_file)
     if not isinstance(data, dict):
@@ -19,7 +23,11 @@ def load_json(path: str | Path) -> dict[str, Any]:
 
 
 def load_yaml(path: str | Path) -> dict[str, Any]:
-    """Load a YAML object from disk."""
+    """从磁盘加载 YAML 对象。
+
+    Args:
+        path: YAML 配置文件路径。
+    """
     with Path(path).open('r', encoding='utf-8') as config_file:
         data = yaml.safe_load(config_file)
     if not isinstance(data, dict):
@@ -28,7 +36,11 @@ def load_yaml(path: str | Path) -> dict[str, Any]:
 
 
 def load_psk_map(path: str | Path) -> dict[str, str]:
-    """Load sensor_id to PSK hex mapping."""
+    """加载 sensor_id 到 PSK 十六进制字符串的映射。
+
+    Args:
+        path: PSK JSON 配置文件路径。
+    """
     raw = load_json(path)
     psk_map: dict[str, str] = {}
     for sensor_id, entry in raw.items():
