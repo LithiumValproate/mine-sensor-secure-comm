@@ -50,19 +50,41 @@ Windows、Linux 和 macOS 的完整本地部署说明见 [doc/deployment.md](doc
    cp config/sensors.yml.example config/sensors.yml
    ```
 
-4. 启动 Mosquitto：
+4. 一键启动整套本地演示：
+
+   macOS / Linux：
 
    ```bash
-   mosquitto -c config/mosquitto.conf.example
+   ./Run.sh
    ```
 
-5. 启动地面中心：
+   Windows：
+
+   ```bat
+   Run.bat
+   ```
+
+   默认会启动 Mosquitto、地面中心、`config/sensors.yml` 中的全部传感器，以及本地控制台 `http://127.0.0.1:8000`。如果正式配置文件不存在，启动器会自动回退到 `config/sensors.yml.example`、`config/psk.json.example` 和 `config/mosquitto.conf.example`。
+
+5. 或者手动启动 Mosquitto：
+
+   ```bash
+   ./scripts/start_mosquitto.sh
+   ```
+
+   Windows：
+
+   ```bat
+   scripts\start_mosquitto.bat
+   ```
+
+6. 手动启动地面中心：
 
    ```bash
    mine-center --sensor-config config/sensors.yml --psk-config config/psk.json
    ```
 
-6. 启动传感器：
+7. 手动启动传感器：
 
    ```bash
    mine-sensor --sensor-id gas_sensor_01 --sensor-config config/sensors.yml --psk-config config/psk.json
@@ -73,6 +95,12 @@ Windows、Linux 和 macOS 的完整本地部署说明见 [doc/deployment.md](doc
 ```bash
 mine-sensor --sensor-id temperature_sensor_01 --sensor-config config/sensors.yml --psk-config config/psk.json
 mine-sensor --sensor-id gas_sensor_02 --sensor-config config/sensors.yml --psk-config config/psk.json
+```
+
+也可以只启动部分组件，例如：
+
+```bash
+python3 scripts/start_system.py --center --sensor-id gas_sensor_01 --web
 ```
 
 ## 使用 uv
@@ -106,6 +134,8 @@ mine-bench --psk-config config/psk.json --count 1000
 | `config/psk.json` | 传感器 ID 到 PSK 的映射，属于敏感配置 |
 | `config/mosquitto.conf.example` | Mosquitto mTLS 示例配置 |
 | `certs/` | 本地测试 CA、Broker、中心和传感器证书 |
+| `web/` | 本地控制台静态页面，由 `scripts/start_system.py --web` 提供 |
+| `Run.sh` / `Run.bat` | 一键启动整套演示环境 |
 
 仓库只提交 `.example` 示例配置。实际运行时需要复制并按环境修改，不应提交真实密钥或私钥。
 
@@ -122,6 +152,16 @@ mine-bench --psk-config config/psk.json --count 1000
 ### Broker 启动失败
 
 检查 `certs/ca.crt`、`certs/broker.crt`、`certs/broker.key` 是否已生成，并确认当前目录是项目根目录。
+
+Windows 下 `scripts\start_mosquitto.bat` 会优先从 `PATH` 查找 `mosquitto.exe`，找不到时再尝试常见安装目录。
+
+### 控制台页面无法连接
+
+如果页面提示“未连接到启动器”，说明当前只是静态打开了 `web/index.html`，或者 `scripts/start_system.py --web` 没有运行。建议直接使用 `Run.bat`、`Run.sh` 或：
+
+```bash
+python3 scripts/start_system.py --all --web
+```
 
 ### 客户端连接被拒绝
 

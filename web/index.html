@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>矿井通信系统监控中心</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">⚡</div>
+                <h1>矿井通信系统监控中心</h1>
+            </div>
+            <div class="status-badge">
+                <span class="status-dot"></span>
+                <span class="status-text">系统运行中</span>
+            </div>
+        </header>
+
+        <div class="main-grid">
+            <div class="card system-card">
+                <div class="card-header">
+                    <div class="card-icon">🖥️</div>
+                    <h2>系统状态</h2>
+                </div>
+                <div class="system-info">
+                    <div class="info-item">
+                        <span class="label">Mosquitto Broker</span>
+                        <span class="value status-online" id="broker-status">检查中...</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">地面中心</span>
+                        <span class="value status-online" id="center-status">检查中...</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">传感器节点</span>
+                        <span class="value status-online" id="sensor-status">检查中...</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">运行时间</span>
+                        <span class="value" id="uptime">00:00:00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card sensor-card">
+                <div class="card-header">
+                    <div class="card-icon">🌡️</div>
+                    <h2>温度传感器</h2>
+                </div>
+                <div class="sensor-display">
+                    <div class="temp-circle">
+                        <div class="temp-value" id="temp-value">--</div>
+                        <div class="temp-unit">°C</div>
+                    </div>
+                    <div class="temp-range">
+                        <div class="range-min">15°C</div>
+                        <div class="range-bar">
+                            <div class="range-fill" id="temp-fill"></div>
+                        </div>
+                        <div class="range-max">35°C</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card gas-card">
+                <div class="card-header">
+                    <div class="card-icon">⚠️</div>
+                    <h2>瓦斯浓度</h2>
+                </div>
+                <div class="gas-display">
+                    <div class="gas-value" id="gas-value">--</div>
+                    <div class="gas-unit">%</div>
+                    <div class="gas-warning" id="gas-warning"></div>
+                </div>
+                <div class="gas-bar">
+                    <div class="gas-progress" id="gas-progress"></div>
+                </div>
+                <div class="gas-threshold">
+                    <span>安全阈值: 1.0%</span>
+                </div>
+            </div>
+
+            <div class="card sensors-card">
+                <div class="card-header">
+                    <div class="card-icon">🔌</div>
+                    <h2>传感器节点</h2>
+                    <span class="sensor-count" id="sensor-count">0</span>
+                </div>
+                <div class="sensors-list" id="sensors-list">
+                    <div class="sensors-empty">等待传感器数据...</div>
+                </div>
+            </div>
+
+            <div class="card log-card">
+                <div class="card-header">
+                    <div class="card-icon">📋</div>
+                    <h2>数据日志</h2>
+                    <span class="log-count">0/20</span>
+                </div>
+                <div class="log-container" id="log-container">
+                    <div class="log-empty">点击日志查看详情...</div>
+                </div>
+            </div>
+
+            <div class="card test-card">
+                <div class="card-header">
+                    <div class="card-icon">🧪</div>
+                    <h2>系统测试</h2>
+                </div>
+                <div class="test-controls">
+                    <button class="btn btn-test" id="run-test-btn">运行测试</button>
+                    <span class="test-status" id="test-status">点击运行测试</span>
+                </div>
+                <div class="test-results" id="test-results">
+                    <div class="test-item">
+                        <span class="test-name">加密模块</span>
+                        <span class="test-value" id="test-encryption">--</span>
+                    </div>
+                    <div class="test-item">
+                        <span class="test-name">消息打包</span>
+                        <span class="test-value" id="test-packing">--</span>
+                    </div>
+                    <div class="test-item">
+                        <span class="test-name">TLS连接</span>
+                        <span class="test-value" id="test-connection">--</span>
+                    </div>
+                    <div class="test-item">
+                        <span class="test-name">完整流程</span>
+                        <span class="test-value" id="test-full-flow">--</span>
+                    </div>
+                </div>
+                <div class="test-summary" id="test-summary">
+                    <span>测试时间: <span id="test-time">--</span></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="footer-info">
+                <span>最后更新: <span id="last-update">--</span></span>
+                <span>消息序列: <span id="seq-num">--</span></span>
+            </div>
+            <div class="footer-buttons">
+                <button class="btn btn-primary" id="refresh-btn">刷新</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
