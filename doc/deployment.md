@@ -194,14 +194,16 @@ Copy-Item config\sensors.yml.example config\sensors.yml
 在项目根目录运行：
 
 ```bash
-mosquitto -c config/mosquitto.conf.example
+./scripts/start_mosquitto.sh
 ```
 
 Windows PowerShell 如果 `mosquitto` 不在 `PATH` 中，可以运行：
 
 ```powershell
-& "C:\Program Files\mosquitto\mosquitto.exe" -c config\mosquitto.conf.example
+scripts\start_mosquitto.bat
 ```
+
+脚本默认优先读取 `config/mosquitto.conf`；如果该文件不存在，则回退到 `config/mosquitto.conf.example`。
 
 示例配置会监听 `8883` 端口，并启用 mTLS：
 
@@ -220,6 +222,56 @@ tls_version tlsv1.2
 ```
 
 如果本地已有服务占用 `8883`，可以复制一份配置文件并修改端口，同时更新 `config/sensors.yml` 中的 `mqtt.port`。
+
+## 4.1 一键启动整套演示环境
+
+如果希望一次性启动 Broker、地面中心、全部示例传感器和本地控制台，可以直接运行：
+
+macOS / Linux：
+
+```bash
+./Run.sh
+```
+
+Windows：
+
+```bat
+Run.bat
+```
+
+也可以显式调用启动器：
+
+```bash
+python3 scripts/start_system.py --all --web
+```
+
+启动器默认会：
+
+- 启动 Mosquitto
+- 启动地面中心
+- 按 `config/sensors.yml` 启动全部传感器
+- 打开本地控制台 `http://127.0.0.1:8000`
+
+如果正式配置文件不存在，启动器会自动回退到对应的 `.example` 文件，因此新环境也可以先直接跑通演示，再按需复制正式配置。
+
+如果只想启动部分组件，可以组合参数，例如：
+
+```bash
+python3 scripts/start_system.py --center --sensor-id gas_sensor_01 --web
+```
+
+常用参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `--mosquitto` | 只启动 Mosquitto |
+| `--center` | 只启动地面中心 |
+| `--all-sensors` | 启动配置中的全部传感器 |
+| `--sensor-id <id>` | 启动指定传感器，可重复传入 |
+| `--web` | 启动本地控制台 |
+| `--web-port 8080` | 修改控制台端口 |
+| `--no-browser` | 启动控制台但不自动打开浏览器 |
+| `--host` / `--port` | 覆盖 YAML 中的 MQTT 地址 |
 
 ## 5. 启动地面中心
 
@@ -241,6 +293,8 @@ mine-center --sensor-config config\sensors.yml --psk-config config\psk.json
 - `mine/+/status`
 
 收到数据后，中心会输出 JSON 结果，包括是否接受、解密后的明文和告警列表。
+
+如果是通过一键启动器启动，控制台页面也会展示当前托管进程状态和最近日志。
 
 ## 6. 启动传感器
 
