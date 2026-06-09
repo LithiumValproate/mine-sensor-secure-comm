@@ -1,0 +1,34 @@
+[simulation]
+default_interval_seconds = 0.5
+
+locations = [
+    "采煤工作面",
+    "掘进工作面",
+    "回风巷",
+    "运输巷",
+    "皮带机头",
+    "皮带机尾",
+    "转载点",
+    "井底车场",
+    "中央变电所",
+    "水泵房"
+]
+
+[units]
+gas = "%CH4"
+temperature = "°C"
+
+[thresholds.gas]
+warning = 1.0
+critical = 1.5
+
+[thresholds.temperature]
+warning = 45.0
+critical = 60.0
+
+[mqtt]
+host = "localhost"
+port = 8883
+ca_file = "certs/ca.crt"
+center_cert = "certs/center.crt"
+center_key = "certs/center.key"
