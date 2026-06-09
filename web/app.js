@@ -1,15 +1,15 @@
 let lastPayload = null;
 let latestLogDetails = new Map();
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     refreshDashboard();
     setInterval(refreshDashboard, 2000);
 
-    document.getElementById('refresh-btn').addEventListener('click', function() {
+    document.getElementById('refresh-btn').addEventListener('click', function () {
         refreshDashboard();
     });
 
-    document.getElementById('run-test-btn').addEventListener('click', function() {
+    document.getElementById('run-test-btn').addEventListener('click', function () {
         updateTestResults(lastPayload);
     });
 });
@@ -206,7 +206,7 @@ function renderLogs(logs, alerts) {
         .join('');
 
     for (const item of container.querySelectorAll('.log-item')) {
-        item.addEventListener('click', function() {
+        item.addEventListener('click', function () {
             showLogDetail(latestLogDetails.get(item.dataset.id));
         });
     }
@@ -264,7 +264,7 @@ function updateTestResults(payload) {
 
 async function refreshDashboard() {
     try {
-        const response = await fetch('/api/status', { cache: 'no-store' });
+        const response = await fetch('/api/status', {cache: 'no-store'});
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
@@ -349,7 +349,7 @@ function showLogDetail(log) {
             </div>
         `;
         document.body.appendChild(modal);
-        modal.addEventListener('click', function(event) {
+        modal.addEventListener('click', function (event) {
             if (event.target === modal) {
                 closeLogDetail();
             }
