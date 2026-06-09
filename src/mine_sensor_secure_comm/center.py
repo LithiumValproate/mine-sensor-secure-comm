@@ -6,7 +6,7 @@ import argparse
 import json
 
 from .center_core import GroundCenterCore
-from .config_loader import load_psk_map, load_yaml
+from .config_loader import load_psk_map, load_sensor_config
 from .message import decode_json, now_ms
 from .mqtt_runtime import certificate_common_name, make_tls_client
 
@@ -15,10 +15,10 @@ def build_core(sensor_config_path: str, psk_config_path: str) -> GroundCenterCor
     """根据配置文件构建中心端校验核心。
 
     Args:
-        sensor_config_path: 传感器 YAML 配置文件路径。
+        sensor_config_path: 传感器配置文件路径。
         psk_config_path: PSK JSON 配置文件路径。
     """
-    sensor_config = load_yaml(sensor_config_path)
+    sensor_config = load_sensor_config(sensor_config_path)
     sensors = sensor_config.get('sensors', {})
     thresholds = sensor_config.get('thresholds', {})
     sensor_types = {
@@ -35,13 +35,13 @@ def build_core(sensor_config_path: str, psk_config_path: str) -> GroundCenterCor
 def main() -> None:
     """运行地面中心 MQTT 订阅端。"""
     parser = argparse.ArgumentParser()
-    parser.add_argument('--sensor-config', default='config/sensors.yml')
+    parser.add_argument('--sensor-config', default='config/sensors.toml')
     parser.add_argument('--psk-config', default='config/psk.json')
     parser.add_argument('--host', default=None)
     parser.add_argument('--port', type=int, default=None)
     args = parser.parse_args()
 
-    sensor_config = load_yaml(args.sensor_config)
+    sensor_config = load_sensor_config(args.sensor_config)
     mqtt_config = sensor_config.get('mqtt', {})
     host = args.host or mqtt_config.get('host', 'localhost')
     port = args.port or int(mqtt_config.get('port', 8883))

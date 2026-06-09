@@ -6,7 +6,7 @@ import argparse
 import json
 import time
 
-from .config_loader import load_psk_map, load_yaml
+from .config_loader import load_psk_map, load_sensor_config
 from .message import data_topic, encode_json, now_ms, status_topic
 from .mqtt_runtime import make_tls_client
 from .sensor_sim import SensorNodeSimulator, SensorProfile
@@ -16,7 +16,7 @@ def main() -> None:
     """运行一个模拟传感器节点。"""
     parser = argparse.ArgumentParser()
     parser.add_argument('--sensor-id', required=True)
-    parser.add_argument('--sensor-config', default='config/sensors.yml')
+    parser.add_argument('--sensor-config', default='config/sensors.toml')
     parser.add_argument('--psk-config', default='config/psk.json')
     parser.add_argument('--host', default=None)
     parser.add_argument('--port', type=int, default=None)
@@ -24,7 +24,7 @@ def main() -> None:
     parser.add_argument('--plaintext', action='store_true', help='publish plaintext JSON for TLS-only benchmark')
     args = parser.parse_args()
 
-    sensor_config = load_yaml(args.sensor_config)
+    sensor_config = load_sensor_config(args.sensor_config)
     mqtt_config = sensor_config.get('mqtt', {})
     sensors = sensor_config.get('sensors', {})
     sensor = sensors[args.sensor_id]

@@ -80,7 +80,7 @@ flowchart LR
 │   └── sensor_01.key
 ├── config/
 │   ├── mosquitto.conf
-│   ├── sensors.yml
+│   ├── sensors.toml
 │   └── psk.json
 ├── doc/
 │   └── system_design.md
@@ -297,16 +297,16 @@ version || sensor_id || sensor_type || seq || timestamp_ms
 
 阈值应放入配置文件，避免硬编码。示例：
 
-```yaml
-thresholds:
-  gas:
-    warning: 1.0
-    critical: 1.5
-    unit: "%LEL"
-  temperature:
-    warning: 45.0
-    critical: 60.0
-    unit: "C"
+```toml
+[thresholds.gas]
+warning = 1.0
+critical = 1.5
+unit = "%LEL"
+
+[thresholds.temperature]
+warning = 45.0
+critical = 60.0
+unit = "C"
 ```
 
 实际阈值需要结合课程要求、矿井安全规程或实验环境设定。

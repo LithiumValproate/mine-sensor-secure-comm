@@ -21,16 +21,13 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-try:
-    import yaml
-except ImportError as exc:  # pragma: no cover
-    yaml = None
-    YAML_IMPORT_ERROR = exc
-else:
-    YAML_IMPORT_ERROR = None
-
-
 PROJECT_DIR = Path(__file__).resolve().parent.parent
+SRC_DIR = PROJECT_DIR / 'src'
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+from mine_sensor_secure_comm.config_loader import load_sensor_config  # noqa: E402
+
 WEB_DIR = PROJECT_DIR / 'web'
 DEFAULT_WEB_PORT = 8000
 MAX_LOG_LINES = 200
@@ -39,12 +36,9 @@ MAX_ALERTS = 100
 
 def load_sensor_catalog(sensor_config_path: Path) -> dict[str, dict[str, Any]]:
     """Load configured sensors with metadata used by the dashboard."""
-    if yaml is None:
-        raise RuntimeError('PyYAML is required to read sensor configuration') from YAML_IMPORT_ERROR
-    with sensor_config_path.open('r', encoding='utf-8') as config_file:
-        payload = yaml.safe_load(config_file)
+    payload = load_sensor_config(sensor_config_path)
     if not isinstance(payload, dict):
-        raise ValueError(f"invalid YAML object in {sensor_config_path}")
+        raise ValueError(f"invalid sensor config object in {sensor_config_path}")
     sensors = payload.get('sensors', {})
     if not isinstance(sensors, dict):
         raise ValueError(f"invalid sensors section in {sensor_config_path}")
@@ -72,7 +66,7 @@ def load_sensor_catalog(sensor_config_path: Path) -> dict[str, dict[str, Any]]:
 
 
 def load_sensor_ids(sensor_config_path: Path) -> list[str]:
-    """Load all sensor IDs from YAML configuration."""
+    """Load all sensor IDs from sensor configuration."""
     return list(load_sensor_catalog(sensor_config_path).keys())
 
 
@@ -327,7 +321,7 @@ def build_sensor_command(
     command = [
         sys.executable,
         '-m',
-        'mine_sensor_secure_comm.sensor_node',
+        'mine_sensor_secure_comm.sensor_cli',
         '--sensor-id',
         sensor_id,
         '--sensor-config',
@@ -467,7 +461,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--web', action='store_true', help='启动本地监控页')
     parser.add_argument('--no-browser', action='store_true', help='启动监控页时不自动打开浏览器')
     parser.add_argument('--web-port', type=int, default=DEFAULT_WEB_PORT, help='监控页端口，默认 8000')
-    parser.add_argument('--sensor-config', default='config/sensors.yml', help='传感器配置文件路径')
+    parser.add_argument('--sensor-config', default='config/sensors.toml', help='传感器配置文件路径')
     parser.add_argument('--psk-config', default='config/psk.json', help='PSK 配置文件路径')
     parser.add_argument('--mosquitto-config', default=None, help='Mosquitto 配置文件路径')
     parser.add_argument('--host', default=None, help='覆盖 MQTT 主机地址')

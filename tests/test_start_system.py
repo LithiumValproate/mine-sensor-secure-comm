@@ -41,13 +41,13 @@ def test_select_mosquitto_config_prefers_real_file(tmp_path: Path) -> None:
 
 def test_load_sensor_ids_reads_keys(tmp_path: Path) -> None:
     """传感器 ID 应按配置字典键读取。"""
-    sensor_config = tmp_path / 'sensors.yml'
+    sensor_config = tmp_path / 'sensors.toml'
     sensor_config.write_text(
-        'sensors:\n'
-        '  gas_sensor_01:\n'
-        '    type: gas\n'
-        '  temperature_sensor_01:\n'
-        '    type: temperature\n',
+        '[sensors.gas_sensor_01]\n'
+        'type = "gas"\n'
+        '\n'
+        '[sensors.temperature_sensor_01]\n'
+        'type = "temperature"\n',
         encoding='utf-8',
     )
 
@@ -58,17 +58,16 @@ def test_load_sensor_ids_reads_keys(tmp_path: Path) -> None:
 
 def test_load_sensor_catalog_includes_thresholds(tmp_path: Path) -> None:
     """设备目录应包含前端实时监控需要的元数据。"""
-    sensor_config = tmp_path / 'sensors.yml'
+    sensor_config = tmp_path / 'sensors.toml'
     sensor_config.write_text(
-        'sensors:\n'
-        '  gas_sensor_01:\n'
-        '    type: gas\n'
-        '    unit: "%LEL"\n'
-        '    location: mine-A-03\n'
-        'thresholds:\n'
-        '  gas:\n'
-        '    warning: 1.0\n'
-        '    critical: 1.5\n',
+        '[sensors.gas_sensor_01]\n'
+        'type = "gas"\n'
+        'unit = "%LEL"\n'
+        'location = "mine-A-03"\n'
+        '\n'
+        '[thresholds.gas]\n'
+        'warning = 1.0\n'
+        'critical = 1.5\n',
         encoding='utf-8',
     )
 
@@ -91,6 +90,20 @@ def test_select_config_with_example_uses_example_file(tmp_path: Path) -> None:
     assert selected == example_path
 
 
+def test_build_sensor_command_uses_sensor_cli() -> None:
+    """The launcher should call the real sensor CLI entrypoint."""
+    command = MODULE.build_sensor_command(
+        'gas_sensor_01',
+        Path('config/sensors.toml'),
+        Path('config/psk.json'),
+        None,
+        None,
+    )
+
+    assert 'mine_sensor_secure_comm.sensor_cli' in command
+    assert 'config/sensors.toml' in command
+
+
 def test_launcher_state_ingests_center_reading_and_alert() -> None:
     """中心端 JSON 日志应更新实时读数和通知历史。"""
     state = MODULE.LauncherState(
@@ -104,7 +117,7 @@ def test_launcher_state_ingests_center_reading_and_alert() -> None:
                 'thresholds': {'warning': 1.0, 'critical': 1.5},
             },
         },
-        sensor_config='config/sensors.yml',
+        sensor_config='config/sensors.toml',
         psk_config='config/psk.json',
         mosquitto_config='config/mosquitto.conf',
         web_port=8000,
@@ -143,7 +156,7 @@ def test_launcher_state_builds_frontend_sensor_map() -> None:
                 'location': 'mine-A-03',
             },
         },
-        sensor_config='config/sensors.yml',
+        sensor_config='config/sensors.toml',
         psk_config='config/psk.json',
         mosquitto_config='config/mosquitto.conf',
         web_port=8000,
@@ -178,7 +191,7 @@ def test_launcher_state_frontend_sensor_map_uses_placeholder_without_reading() -
                 'location': 'mine-A-03',
             },
         },
-        sensor_config='config/sensors.yml',
+        sensor_config='config/sensors.toml',
         psk_config='config/psk.json',
         mosquitto_config='config/mosquitto.conf',
         web_port=8000,

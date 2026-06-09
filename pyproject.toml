@@ -19,7 +19,7 @@ test = [
 
 [project.scripts]
 mine-center = "mine_sensor_secure_comm.center:main"
-mine-sensor = "mine_sensor_secure_comm.sensor_node:main"
+mine-sensor = "mine_sensor_secure_comm.sensor_cli:main"
 mine-sec-test = "mine_sensor_secure_comm.security_tests:main"
 mine-bench = "mine_sensor_secure_comm.benchmark:main"
 

@@ -15,7 +15,7 @@
 ## 环境要求
 
 - 推荐 Python 3.12。
-- 支持 Python 3.10、3.11、3.12、3.13。
+- 支持 Python 3.11、3.12、3.13。
 - Mosquitto Broker，需支持 TLS。
 - OpenSSL，用于生成本地测试证书。
 
@@ -43,12 +43,13 @@ Windows、Linux 和 macOS 的完整本地部署说明见 [doc/deployment.md](doc
    scripts\generate_certs.bat
    ```
 
-3. 复制示例配置：
+3. 准备敏感配置：
 
    ```bash
    cp config/psk.json.example config/psk.json
-   cp config/sensors.yml.example config/sensors.yml
    ```
+
+   传感器配置默认使用仓库内的 `config/sensors.toml`。
 
 4. 一键启动整套本地演示：
 
@@ -64,7 +65,7 @@ Windows、Linux 和 macOS 的完整本地部署说明见 [doc/deployment.md](doc
    Run.bat
    ```
 
-   默认会启动 Mosquitto、地面中心、`config/sensors.yml` 中的全部传感器，以及本地控制台 `http://127.0.0.1:8000`。如果正式配置文件不存在，启动器会自动回退到 `config/sensors.yml.example`、`config/psk.json.example` 和 `config/mosquitto.conf.example`。
+   默认会启动 Mosquitto、地面中心、`config/sensors.toml` 中的全部传感器，以及本地控制台 `http://127.0.0.1:8000`。如果敏感配置或 Mosquitto 正式配置文件不存在，启动器会自动回退到 `config/psk.json.example` 和 `config/mosquitto.conf.example`。
 
 5. 或者手动启动 Mosquitto：
 
@@ -81,20 +82,20 @@ Windows、Linux 和 macOS 的完整本地部署说明见 [doc/deployment.md](doc
 6. 手动启动地面中心：
 
    ```bash
-   mine-center --sensor-config config/sensors.yml --psk-config config/psk.json
+   mine-center --sensor-config config/sensors.toml --psk-config config/psk.json
    ```
 
 7. 手动启动传感器：
 
    ```bash
-   mine-sensor --sensor-id gas_sensor_01 --sensor-config config/sensors.yml --psk-config config/psk.json
+   mine-sensor --sensor-id gas_sensor_01 --sensor-config config/sensors.toml --psk-config config/psk.json
    ```
 
 也可以启动其他示例传感器：
 
 ```bash
-mine-sensor --sensor-id temperature_sensor_01 --sensor-config config/sensors.yml --psk-config config/psk.json
-mine-sensor --sensor-id gas_sensor_02 --sensor-config config/sensors.yml --psk-config config/psk.json
+mine-sensor --sensor-id temperature_sensor_01 --sensor-config config/sensors.toml --psk-config config/psk.json
+mine-sensor --sensor-id gas_sensor_02 --sensor-config config/sensors.toml --psk-config config/psk.json
 ```
 
 也可以只启动部分组件，例如：
@@ -130,14 +131,14 @@ mine-bench --psk-config config/psk.json --count 1000
 
 | 文件 | 说明 |
 | --- | --- |
-| `config/sensors.yml` | 传感器列表、类型、单位、位置、上报间隔、证书路径和阈值 |
+| `config/sensors.toml` | 传感器列表、类型、单位、位置、上报间隔、证书路径和阈值 |
 | `config/psk.json` | 传感器 ID 到 PSK 的映射，属于敏感配置 |
 | `config/mosquitto.conf.example` | Mosquitto mTLS 示例配置 |
 | `certs/` | 本地测试 CA、Broker、中心和传感器证书 |
 | `web/` | 本地控制台静态页面，由 `scripts/start_system.py --web` 提供 |
 | `Run.sh` / `Run.bat` | 一键启动整套演示环境 |
 
-仓库只提交 `.example` 示例配置。实际运行时需要复制并按环境修改，不应提交真实密钥或私钥。
+仓库提交默认的 `config/sensors.toml` 和非敏感 `.example` 示例配置。实际运行时需要复制并按环境修改敏感配置，不应提交真实密钥或私钥。
 
 ## 安全说明
 
@@ -165,7 +166,7 @@ python3 scripts/start_system.py --all --web
 
 ### 客户端连接被拒绝
 
-确认已运行对应平台的证书生成脚本（macOS / Linux 为 `./scripts/generate_certs.sh`，Windows 为 `scripts\generate_certs.bat`），并检查 `config/sensors.yml` 中的证书路径是否存在。mTLS 模式下，传感器和地面中心都必须使用由同一 CA 签发的客户端证书。
+确认已运行对应平台的证书生成脚本（macOS / Linux 为 `./scripts/generate_certs.sh`，Windows 为 `scripts\generate_certs.bat`），并检查 `config/sensors.toml` 中的证书路径是否存在。mTLS 模式下，传感器和地面中心都必须使用由同一 CA 签发的客户端证书。
 
 ### 地面中心解密失败
 

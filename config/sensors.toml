@@ -18,6 +18,30 @@ locations = [
 gas = "%CH4"
 temperature = "°C"
 
+[sensors.temperature_sensor_01]
+type = "temperature"
+unit = "°C"
+location = "采煤工作面"
+interval_seconds = 1.0
+client_cert = "certs/temperature_sensor_01.crt"
+client_key = "certs/temperature_sensor_01.key"
+
+[sensors.gas_sensor_01]
+type = "gas"
+unit = "%CH4"
+location = "回风巷"
+interval_seconds = 1.0
+client_cert = "certs/gas_sensor_01.crt"
+client_key = "certs/gas_sensor_01.key"
+
+[sensors.gas_sensor_02]
+type = "gas"
+unit = "%CH4"
+location = "运输巷"
+interval_seconds = 1.0
+client_cert = "certs/gas_sensor_02.crt"
+client_key = "certs/gas_sensor_02.key"
+
 [thresholds.gas]
 warning = 1.0
 critical = 1.5

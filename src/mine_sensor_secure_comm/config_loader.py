@@ -3,10 +3,17 @@
 from __future__ import annotations
 
 import json
+import tomllib
 from pathlib import Path
 from typing import Any
 
-import yaml
+try:
+    import yaml
+except ImportError as exc:  # pragma: no cover
+    yaml = None
+    YAML_IMPORT_ERROR = exc
+else:
+    YAML_IMPORT_ERROR = None
 
 
 def load_json(path: str | Path) -> dict[str, Any]:
@@ -28,11 +35,38 @@ def load_yaml(path: str | Path) -> dict[str, Any]:
     Args:
         path: YAML 配置文件路径。
     """
+    if yaml is None:
+        raise RuntimeError('PyYAML is required to read YAML configuration') from YAML_IMPORT_ERROR
     with Path(path).open('r', encoding='utf-8') as config_file:
         data = yaml.safe_load(config_file)
     if not isinstance(data, dict):
         raise ValueError(f"expected YAML object in {path}")
     return data
+
+
+def load_toml(path: str | Path) -> dict[str, Any]:
+    """Load a TOML object from disk.
+
+    Arg:
+        path: TOML configuration file path.
+    """
+    with Path(path).open('rb') as config_file:
+        data = tomllib.load(config_file)
+    if not isinstance(data, dict):
+        raise ValueError(f"expected TOML object in {path}")
+    return data
+
+
+def load_sensor_config(path: str | Path) -> dict[str, Any]:
+    """Load a sensor configuration file by suffix.
+
+    Arg:
+        path: Sensor configuration file path.
+    """
+    config_path = Path(path)
+    if config_path.suffix.lower() == '.toml':
+        return load_toml(config_path)
+    return load_yaml(config_path)
 
 
 def load_psk_map(path: str | Path) -> dict[str, str]:
