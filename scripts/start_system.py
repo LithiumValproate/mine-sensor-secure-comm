@@ -27,11 +27,13 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from mine_sensor_secure_comm.config_loader import load_sensor_config  # noqa: E402
+from mine_sensor_secure_comm.log_records import LogRecorder  # noqa: E402
 
 WEB_DIR = PROJECT_DIR / 'web'
 DEFAULT_WEB_PORT = 8000
 MAX_LOG_LINES = 200
 MAX_ALERTS = 100
+DEFAULT_LOG_FILE = 'logs/launcher.jsonl'
 
 
 def load_sensor_catalog(sensor_config_path: Path) -> dict[str, dict[str, Any]]:
@@ -140,20 +142,15 @@ class LauncherState:
     web_port: int
     started_at: float = field(default_factory=time.time)
     processes: list[ManagedProcess] = field(default_factory=list)
-    logs: deque[dict[str, str]] = field(default_factory=lambda: deque(maxlen=MAX_LOG_LINES))
+    log_recorder: LogRecorder = field(default_factory=lambda: LogRecorder(max_lines=MAX_LOG_LINES))
     readings: dict[str, dict[str, Any]] = field(default_factory=dict)
     alerts: deque[dict[str, Any]] = field(default_factory=lambda: deque(maxlen=MAX_ALERTS))
 
     def add_log(self, source: str, line: str) -> None:
         """追加一条日志。"""
-        clean_line = line.rstrip()
-        self.logs.append({
-            'ts': time.strftime('%H:%M:%S'),
-            'source': source,
-            'line': clean_line,
-        })
+        record = self.log_recorder.append(source, line)
         if source == 'center':
-            self.ingest_center_line(clean_line)
+            self.ingest_center_line(record['line'])
 
     def ingest_center_line(self, line: str) -> None:
         """Ingest one JSON line emitted by the center process."""
@@ -261,7 +258,7 @@ class LauncherState:
                 'mosquitto_config': self.mosquitto_config,
             },
             'components': [item.snapshot() for item in self.processes],
-            'logs': list(self.logs),
+            'logs': self.log_recorder.snapshot(),
         }
 
     def frontend_sensor_map(self) -> dict[str, dict[str, Any]]:
@@ -464,6 +461,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--sensor-config', default='config/sensors.toml', help='传感器配置文件路径')
     parser.add_argument('--psk-config', default='config/psk.json', help='PSK 配置文件路径')
     parser.add_argument('--mosquitto-config', default=None, help='Mosquitto 配置文件路径')
+    parser.add_argument(
+        '--log-file',
+        default=DEFAULT_LOG_FILE,
+        help='启动器 JSONL 日志文件路径，默认 logs/launcher.jsonl',
+    )
     parser.add_argument('--host', default=None, help='覆盖 MQTT 主机地址')
     parser.add_argument('--port', type=int, default=None, help='覆盖 MQTT 端口')
     return parser.parse_args()
@@ -485,6 +487,11 @@ def main() -> int:
     sensor_config_path = select_config_with_example(PROJECT_DIR, args.sensor_config, '.example')
     psk_config_path = select_config_with_example(PROJECT_DIR, args.psk_config, '.example')
     mosquitto_config_path = select_mosquitto_config(PROJECT_DIR, args.mosquitto_config)
+    log_file_path = (
+        (PROJECT_DIR / args.log_file).resolve()
+        if not Path(args.log_file).is_absolute()
+        else Path(args.log_file)
+    )
 
     sensor_catalog = load_sensor_catalog(sensor_config_path)
     configured_sensor_ids = list(sensor_catalog.keys())
@@ -499,6 +506,7 @@ def main() -> int:
         psk_config=str(psk_config_path),
         mosquitto_config=str(mosquitto_config_path),
         web_port=args.web_port,
+        log_recorder=LogRecorder(max_lines=MAX_LOG_LINES, log_path=log_file_path),
     )
 
     dashboard = None

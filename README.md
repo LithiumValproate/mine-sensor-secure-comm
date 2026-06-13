@@ -66,6 +66,7 @@ Windows、Linux 和 macOS 的完整本地部署说明见 [doc/deployment.md](doc
    ```
 
    默认会启动 Mosquitto、地面中心、`config/sensors.toml` 中的全部传感器，以及本地控制台 `http://127.0.0.1:8000`。如果敏感配置或 Mosquitto 正式配置文件不存在，启动器会自动回退到 `config/psk.json.example` 和 `config/mosquitto.conf.example`。
+   启动器会将最近日志提供给控制台，并默认追加写入 `logs/launcher.jsonl`；如需改位置可传入 `--log-file`。
 
 5. 或者手动启动 Mosquitto：
 
@@ -135,6 +136,7 @@ mine-bench --psk-config config/psk.json --count 1000
 | `config/psk.json` | 传感器 ID 到 PSK 的映射，属于敏感配置 |
 | `config/mosquitto.conf.example` | Mosquitto mTLS 示例配置 |
 | `certs/` | 本地测试 CA、Broker、中心和传感器证书 |
+| `logs/launcher.jsonl` | 一键启动器运行日志，默认不提交 |
 | `web/` | 本地控制台静态页面，由 `scripts/start_system.py --web` 提供 |
 | `Run.sh` / `Run.bat` | 一键启动整套演示环境 |
 
