@@ -1,4 +1,4 @@
-"""Log recording helper tests."""
+# 这组测试覆盖运行时日志记录与 JSONL 持久化行为。
 
 from __future__ import annotations
 

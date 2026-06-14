@@ -6,7 +6,7 @@ import argparse
 import json
 
 from .center_core import GroundCenterCore
-from .config_loader import load_psk_map, load_sensor_config
+from .config_loader import load_psk_map, load_sensor_config, load_sensor_map
 from .message import decode_json, now_ms
 from .mqtt_runtime import certificate_common_name, make_tls_client
 
@@ -19,8 +19,13 @@ def build_core(sensor_config_path: str, psk_config_path: str) -> GroundCenterCor
         psk_config_path: PSK JSON 配置文件路径。
     """
     sensor_config = load_sensor_config(sensor_config_path)
-    sensors = sensor_config.get('sensors', {})
+    sensors = load_sensor_map(
+        sensor_config,
+        config_path=sensor_config_path,
+    )
     thresholds = sensor_config.get('thresholds', {})
+    if not isinstance(thresholds, dict):
+        raise ValueError(f"invalid thresholds section in {sensor_config_path}")
     sensor_types = {
         sensor_id: str(config['type'])
         for sensor_id, config in sensors.items()

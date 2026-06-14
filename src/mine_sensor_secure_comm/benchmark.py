@@ -7,7 +7,7 @@ import statistics
 import time
 from typing import Any
 
-from .config_loader import load_psk_map
+from .config_loader import load_psk_map, load_sensor_config, load_sensor_entry
 from .crypto_utils import decrypt_payload
 from .sensor_node import SensorNode
 from .sensor_sim import SensorNodeSimulator
@@ -44,19 +44,29 @@ def percentile(sorted_values: list[float], percent: int) -> float:
     return sorted_values[index]
 
 
-def run_local_crypto_benchmark(psk_hex: str, count: int) -> dict[str, Any]:
+def run_local_crypto_benchmark(
+        *,
+        sensor_id: str,
+        sensor_config: dict[str, Any],
+        psk_hex: str,
+        count: int,
+) -> dict[str, Any]:
     """测量本地应用层加解密开销。
 
     Args:
+        sensor_id: 参与测试的传感器编号。
+        sensor_config: 已加载的传感器配置对象。
         psk_hex: 传感器 PSK 的十六进制字符串。
         count: 要执行的加解密轮数。
     """
+    sensor = load_sensor_entry(sensor_config, sensor_id)
     simulator = SensorNodeSimulator(
         SensorNode(
-            sensor_id='gas_sensor_01',
-            location='mine-A-03',
-            sensor_type='gas',
-            unit='%LEL',
+            sensor_id=sensor_id,
+            location=str(sensor['location']),
+            sensor_type=str(sensor['type']),
+            unit=str(sensor['unit']),
+            interval_seconds=float(sensor.get('interval_seconds', 0.5)),
         ),
         psk_hex,
     )
@@ -85,12 +95,19 @@ def run_local_crypto_benchmark(psk_hex: str, count: int) -> dict[str, Any]:
 def main() -> None:
     """运行本地应用层加密基准测试。"""
     parser = argparse.ArgumentParser()
+    parser.add_argument('--sensor-config', default='config/sensors.toml')
     parser.add_argument('--psk-config', default='config/psk.json')
     parser.add_argument('--sensor-id', default='gas_sensor_01')
     parser.add_argument('--count', type=int, default=1000)
     args = parser.parse_args()
     psk_hex = load_psk_map(args.psk_config)[args.sensor_id]
-    print(run_local_crypto_benchmark(psk_hex, args.count))
+    sensor_config = load_sensor_config(args.sensor_config)
+    print(run_local_crypto_benchmark(
+        sensor_id=args.sensor_id,
+        sensor_config=sensor_config,
+        psk_hex=psk_hex,
+        count=args.count,
+    ))
 
 
 if __name__ == '__main__':

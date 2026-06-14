@@ -1,3 +1,5 @@
+# 这组测试覆盖延迟统计辅助函数的基础输出结构。
+
 from __future__ import annotations
 
 from mine_sensor_secure_comm.benchmark import summarize_latencies

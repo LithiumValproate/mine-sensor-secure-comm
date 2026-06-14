@@ -71,6 +71,52 @@ def load_sensor_config(path: str | Path) -> dict[str, Any]:
     return load_yaml(config_path)
 
 
+def load_sensor_map(
+        sensor_config: dict[str, Any],
+        *,
+        config_path: str | Path = '<memory>',
+) -> dict[str, dict[str, Any]]:
+    """读取并校验按传感器 ID 组织的配置映射。
+
+    Args:
+        sensor_config: 已加载的传感器配置对象。
+        config_path: 配置来源路径，仅用于错误信息。
+    """
+    sensors = sensor_config.get('sensors', {})
+    if not isinstance(sensors, dict):
+        raise ValueError(f"invalid sensors section in {config_path}")
+
+    sensor_map: dict[str, dict[str, Any]] = {}
+    for sensor_id, entry in sensors.items():
+        if not isinstance(entry, dict):
+            raise ValueError(f"invalid sensor entry for {sensor_id} in {config_path}")
+        sensor_map[str(sensor_id)] = entry
+    return sensor_map
+
+
+def load_sensor_entry(
+        sensor_config: dict[str, Any],
+        sensor_id: str,
+        *,
+        config_path: str | Path = '<memory>',
+) -> dict[str, Any]:
+    """读取单个传感器配置，不存在时给出明确错误。
+
+    Args:
+        sensor_config: 已加载的传感器配置对象。
+        sensor_id: 要查找的传感器编号。
+        config_path: 配置来源路径，仅用于错误信息。
+    """
+    sensor_map = load_sensor_map(
+        sensor_config,
+        config_path=config_path,
+    )
+    sensor = sensor_map.get(sensor_id)
+    if sensor is None:
+        raise ValueError(f"sensor_id not found in sensor config: {sensor_id}")
+    return sensor
+
+
 def load_psk_map(path: str | Path) -> dict[str, str]:
     """加载 sensor_id 到 PSK 十六进制字符串的映射。
 

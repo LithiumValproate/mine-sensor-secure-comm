@@ -8,7 +8,7 @@ import sys
 import time
 from typing import Any
 
-from .config_loader import load_psk_map, load_sensor_config
+from .config_loader import load_psk_map, load_sensor_config, load_sensor_entry
 from .message import data_topic, encode_json, now_ms, status_topic
 from .mqtt_runtime import make_tls_client
 from .sensor_node import SensorNode
@@ -33,10 +33,11 @@ def main() -> int:
 
     sensor_config = load_sensor_config(args.sensor_config)
     mqtt_config = sensor_config.get('mqtt', {})
-    sensors = sensor_config.get('sensors', {})
-    if not isinstance(sensors, dict):
-        raise ValueError('invalid sensors section')
-    sensor = _lookup_sensor_config(sensors, args.sensor_id)
+    sensor = load_sensor_entry(
+        sensor_config,
+        args.sensor_id,
+        config_path=args.sensor_config,
+    )
     psk_map = load_psk_map(args.psk_config)
     psk_hex = _lookup_sensor_psk(psk_map, args.sensor_id)
     host = args.host or mqtt_config.get('host', 'localhost')
@@ -113,23 +114,6 @@ def cli() -> int:
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 1
-
-
-def _lookup_sensor_config(sensors: dict[str, Any], sensor_id: str) -> dict[str, Any]:
-    """读取指定传感器配置，不存在时给出明确错误。
-
-    Args:
-        sensors: 按传感器 ID 组织的配置映射。
-        sensor_id: 要查找的传感器编号。
-    """
-    sensor = sensors.get(sensor_id)
-    if sensor is None:
-        raise ValueError(f"sensor_id not found in sensor config: {sensor_id}")
-    if not isinstance(sensor, dict):
-        raise ValueError(f"invalid sensor entry for {sensor_id}")
-    return sensor
-
-
 def _lookup_sensor_psk(psk_map: dict[str, str], sensor_id: str) -> str:
     """读取指定传感器 PSK，不存在时给出明确错误。
 

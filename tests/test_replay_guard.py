@@ -1,3 +1,5 @@
+# 这组测试覆盖重放检测窗口和序列号校验逻辑。
+
 from __future__ import annotations
 
 from mine_sensor_secure_comm.replay_guard import ReplayGuard

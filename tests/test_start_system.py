@@ -1,4 +1,4 @@
-"""启动器辅助逻辑测试。"""
+# 这组测试覆盖启动器配置装配、运行时目录和状态映射逻辑。
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ import importlib.util
 import random
 import sys
 from pathlib import Path
-
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / 'scripts' / 'start_system.py'
 SPEC = importlib.util.spec_from_file_location('start_system', MODULE_PATH)
