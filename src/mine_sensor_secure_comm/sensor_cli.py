@@ -9,7 +9,8 @@ import time
 from .config_loader import load_psk_map, load_sensor_config
 from .message import data_topic, encode_json, now_ms, status_topic
 from .mqtt_runtime import make_tls_client
-from .sensor_sim import SensorNodeSimulator, SensorProfile
+from .sensor_node import SensorNode
+from .sensor_sim import SensorNodeSimulator
 
 
 def main() -> None:
@@ -31,14 +32,14 @@ def main() -> None:
     host = args.host or mqtt_config.get('host', 'localhost')
     port = args.port or int(mqtt_config.get('port', 8883))
 
-    profile = SensorProfile(
+    sensor_node = SensorNode(
         sensor_id=args.sensor_id,
         sensor_type=str(sensor['type']),
         unit=str(sensor['unit']),
         location=str(sensor['location']),
         interval_seconds=float(sensor.get('interval_seconds', 1.0)),
     )
-    simulator = SensorNodeSimulator(profile, load_psk_map(args.psk_config)[args.sensor_id])
+    simulator = SensorNodeSimulator(sensor_node, load_psk_map(args.psk_config)[args.sensor_id])
     client = make_tls_client(
         client_id=args.sensor_id,
         ca_file=mqtt_config.get('ca_file', 'certs/ca.crt'),
@@ -68,7 +69,7 @@ def main() -> None:
                 payload.update({
                     'version': 1,
                     'sensor_id': args.sensor_id,
-                    'sensor_type': profile.sensor_type,
+                    'sensor_type': sensor_node.sensor_type,
                     'seq': simulator.seq,
                     'timestamp_ms': now_ms(),
                     'send_time_ns': time.perf_counter_ns(),
@@ -82,7 +83,7 @@ def main() -> None:
             client.publish(data_topic(args.sensor_id), mqtt_payload, qos=1)
             print(json.dumps({'sensor_id': args.sensor_id, 'seq': simulator.seq - 1}, sort_keys=True))
             sent += 1
-            time.sleep(profile.interval_seconds)
+            time.sleep(sensor_node.interval_seconds)
     finally:
         client.publish(status_topic(args.sensor_id), encode_json({
             'sensor_id': args.sensor_id,

@@ -9,7 +9,8 @@ from typing import Any
 
 from .config_loader import load_psk_map
 from .crypto_utils import decrypt_payload
-from .sensor_sim import SensorNodeSimulator, SensorProfile
+from .sensor_node import SensorNode
+from .sensor_sim import SensorNodeSimulator
 
 
 def summarize_latencies(latencies_ns: list[int]) -> dict[str, Any]:
@@ -51,7 +52,12 @@ def run_local_crypto_benchmark(psk_hex: str, count: int) -> dict[str, Any]:
         count: 要执行的加解密轮数。
     """
     simulator = SensorNodeSimulator(
-        SensorProfile('gas_sensor_01', 'gas', '%LEL', 'mine-A-03'),
+        SensorNode(
+            sensor_id='gas_sensor_01',
+            location='mine-A-03',
+            sensor_type='gas',
+            unit='%LEL',
+        ),
         psk_hex,
     )
     latencies: list[int] = []
