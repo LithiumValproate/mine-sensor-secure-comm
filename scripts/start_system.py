@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import mimetypes
 import os
 import random
 import secrets
+import shutil
 import signal
 import subprocess
 import sys
@@ -28,7 +30,10 @@ SRC_DIR = PROJECT_DIR / 'src'
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from mine_sensor_secure_comm.config_loader import load_psk_map, load_sensor_config  # noqa: E402
+from mine_sensor_secure_comm.config_loader import (  # noqa: E402
+    load_psk_map,
+    load_sensor_config,
+)
 from mine_sensor_secure_comm.log_records import LogRecorder  # noqa: E402
 
 WEB_DIR = PROJECT_DIR / 'web'
@@ -36,6 +41,9 @@ DEFAULT_WEB_PORT = 8000
 MAX_LOG_LINES = 200
 MAX_ALERTS = 100
 DEFAULT_LOG_FILE = 'logs/launcher.jsonl'
+DEFAULT_RUNTIME_SENSOR_CONFIG = 'sensors.toml'
+DEFAULT_RUNTIME_PSK_CONFIG = 'psk.json'
+DEFAULT_RUNTIME_MOSQUITTO_CONFIG = 'mosquitto.conf'
 RUNTIME_PSK_BYTES = 32
 
 
@@ -244,6 +252,118 @@ def select_config_with_example(project_dir: Path, explicit_path: str, example_su
     raise FileNotFoundError(config_path)
 
 
+def runtime_session_name(started_at: float) -> str:
+    """生成本次运行目录名。"""
+    return time.strftime('%Y%m%d-%H%M%S', time.localtime(started_at))
+
+
+def prepare_runtime_paths(log_path: Path, started_at: float) -> tuple[Path, Path]:
+    """根据日志参数解析运行目录和日志文件路径。"""
+    if log_path.suffix:
+        log_file_name = log_path.name
+        base_dir = log_path.parent
+    else:
+        log_file_name = 'launcher.jsonl'
+        base_dir = log_path
+    runtime_dir = base_dir / runtime_session_name(started_at)
+    return runtime_dir, runtime_dir / log_file_name
+
+
+def write_runtime_sensor_config(config: dict[str, Any], output_path: Path) -> None:
+    """把运行时传感器配置写入 TOML 文件。"""
+    lines: list[str] = []
+    simulation = config.get('simulation', {})
+    if isinstance(simulation, dict):
+        lines.extend(_serialize_toml_table('simulation', simulation))
+    units = config.get('units', {})
+    if isinstance(units, dict):
+        lines.extend(_serialize_toml_table('units', units))
+
+    sensors = config.get('sensors', {})
+    if isinstance(sensors, dict):
+        for sensor_id, sensor in sensors.items():
+            if isinstance(sensor, dict):
+                lines.extend(_serialize_toml_table(f"sensors.{sensor_id}", sensor))
+
+    thresholds = config.get('thresholds', {})
+    if isinstance(thresholds, dict):
+        for sensor_type, sensor_thresholds in thresholds.items():
+            if isinstance(sensor_thresholds, dict):
+                lines.extend(_serialize_toml_table(f"thresholds.{sensor_type}", sensor_thresholds))
+
+    mqtt = config.get('mqtt', {})
+    if isinstance(mqtt, dict):
+        lines.extend(_serialize_toml_table('mqtt', mqtt))
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text('\n'.join(lines).rstrip() + '\n', encoding='utf-8')
+
+
+def write_runtime_psk_map(psk_map: dict[str, str], output_path: Path) -> None:
+    """把运行时 PSK 映射写入 JSON 文件。"""
+    payload = {
+        sensor_id: {
+            'psk_id': sensor_id,
+            'psk_hex': psk_hex,
+        }
+        for sensor_id, psk_hex in sorted(psk_map.items())
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + '\n',
+        encoding='utf-8',
+    )
+
+
+def initialize_runtime_workspace(
+        *,
+        sensor_config_path: Path,
+        psk_config_path: Path,
+        mosquitto_config_path: Path,
+        log_path: Path,
+        started_at: float,
+) -> tuple[Path, Path, Path, Path]:
+    """创建本次运行的工作目录和配置副本。"""
+    runtime_dir, runtime_log_path = prepare_runtime_paths(log_path, started_at)
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+
+    runtime_sensor_config = runtime_dir / DEFAULT_RUNTIME_SENSOR_CONFIG
+    runtime_psk_config = runtime_dir / DEFAULT_RUNTIME_PSK_CONFIG
+    runtime_mosquitto_config = runtime_dir / DEFAULT_RUNTIME_MOSQUITTO_CONFIG
+
+    sensor_config = load_sensor_config(sensor_config_path)
+    write_runtime_sensor_config(sensor_config, runtime_sensor_config)
+    write_runtime_psk_map(load_psk_map(psk_config_path), runtime_psk_config)
+    shutil.copyfile(mosquitto_config_path, runtime_mosquitto_config)
+
+    return runtime_dir, runtime_log_path, runtime_sensor_config, runtime_psk_config
+
+
+def _serialize_toml_table(table_name: str, table: dict[str, Any]) -> list[str]:
+    """把一段简单配置序列化为 TOML 表。"""
+    lines = [f"[{table_name}]"]
+    for key, value in table.items():
+        if isinstance(value, dict):
+            continue
+        lines.append(f"{key} = {_toml_literal(value)}")
+    lines.append('')
+    return lines
+
+
+def _toml_literal(value: Any) -> str:
+    """把简单 Python 值转换为 TOML 字面量。"""
+    if isinstance(value, bool):
+        return 'true' if value else 'false'
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return repr(value)
+    if isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, list):
+        items = ', '.join(_toml_literal(item) for item in value)
+        return f"[{items}]"
+    raise ValueError(f"unsupported TOML value: {value!r}")
+
+
 def with_project_pythonpath(env: dict[str, str]) -> dict[str, str]:
     """为子进程补上 src 目录。"""
     new_env = env.copy()
@@ -291,11 +411,13 @@ class LauncherState:
     psk_config: str
     mosquitto_config: str
     web_port: int
+    runtime_dir: str = ''
     started_at: float = field(default_factory=time.time)
     processes: list[ManagedProcess] = field(default_factory=list)
     log_recorder: LogRecorder = field(default_factory=lambda: LogRecorder(max_lines=MAX_LOG_LINES))
     runtime_psk_map: dict[str, str] = field(default_factory=dict)
     runtime_sensor_specs: dict[str, RuntimeSensorSpec] = field(default_factory=dict)
+    sensor_config_data: dict[str, Any] = field(default_factory=dict)
     readings: dict[str, dict[str, Any]] = field(default_factory=dict)
     alerts: deque[dict[str, Any]] = field(default_factory=lambda: deque(maxlen=MAX_ALERTS))
 
@@ -321,8 +443,32 @@ class LauncherState:
         self.sensor_catalog[spec.sensor_id] = entry
         self.runtime_psk_map[spec.sensor_id] = spec.psk_hex
         self.runtime_sensor_specs[spec.sensor_id] = spec
+        self._persist_runtime_sensor(spec)
         self.add_log('launcher', f"registered runtime sensor {spec.sensor_id}")
         return entry
+
+    def _persist_runtime_sensor(self, spec: RuntimeSensorSpec) -> None:
+        """把新增传感器写回本次运行目录中的配置副本。"""
+        sensors = self.sensor_config_data.setdefault('sensors', {})
+        if not isinstance(sensors, dict):
+            raise ValueError('invalid sensors section')
+        sensors[spec.sensor_id] = {
+            'type': spec.sensor_type,
+            'unit': spec.unit,
+            'location': spec.location,
+            'interval_seconds': spec.interval_seconds,
+            'client_cert': f"certs/{spec.sensor_id}.crt",
+            'client_key': f"certs/{spec.sensor_id}.key",
+        }
+
+        thresholds = self.sensor_config_data.setdefault('thresholds', {})
+        if not isinstance(thresholds, dict):
+            raise ValueError('invalid thresholds section')
+        if spec.thresholds and spec.sensor_type not in thresholds:
+            thresholds[spec.sensor_type] = copy.deepcopy(spec.thresholds)
+
+        write_runtime_sensor_config(self.sensor_config_data, Path(self.sensor_config))
+        write_runtime_psk_map(self.runtime_psk_map, Path(self.psk_config))
 
     def ingest_center_line(self, line: str) -> None:
         """Ingest one JSON line emitted by the center process."""
@@ -428,6 +574,7 @@ class LauncherState:
                 'sensor_config': self.sensor_config,
                 'psk_config': self.psk_config,
                 'mosquitto_config': self.mosquitto_config,
+                'runtime_dir': self.runtime_dir,
             },
             'components': [item.snapshot() for item in self.processes],
             'logs': self.log_recorder.snapshot(),
@@ -553,6 +700,7 @@ def stop_processes(state: LauncherState) -> None:
             process.wait(timeout=5)
         except subprocess.TimeoutExpired:
             process.kill()
+            process.wait(timeout=5)
         except OSError:
             continue
 
@@ -636,7 +784,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         '--log-file',
         default=DEFAULT_LOG_FILE,
-        help='启动器 JSONL 日志文件路径，默认 logs/launcher.jsonl',
+        help='运行日志文件名或路径；实际会写入 logs/<启动时间>/ 下的对应文件',
     )
     parser.add_argument('--host', default=None, help='覆盖 MQTT 主机地址')
     parser.add_argument('--port', type=int, default=None, help='覆盖 MQTT 端口')
@@ -664,8 +812,17 @@ def main() -> int:
         if not Path(args.log_file).is_absolute()
         else Path(args.log_file)
     )
+    started_at = time.time()
+    runtime_dir, runtime_log_path, runtime_sensor_config_path, runtime_psk_config_path = initialize_runtime_workspace(
+        sensor_config_path=sensor_config_path,
+        psk_config_path=psk_config_path,
+        mosquitto_config_path=mosquitto_config_path,
+        log_path=log_file_path,
+        started_at=started_at,
+    )
 
-    sensor_catalog = load_sensor_catalog(sensor_config_path)
+    sensor_config_data = load_sensor_config(runtime_sensor_config_path)
+    sensor_catalog = load_sensor_catalog(runtime_sensor_config_path)
     configured_sensor_ids = list(sensor_catalog.keys())
     selected_sensor_ids = list(args.sensor_id)
     if args.all_sensors:
@@ -674,12 +831,15 @@ def main() -> int:
     state = LauncherState(
         sensor_ids=configured_sensor_ids,
         sensor_catalog=sensor_catalog,
-        sensor_config=str(sensor_config_path),
-        psk_config=str(psk_config_path),
-        mosquitto_config=str(mosquitto_config_path),
+        sensor_config=str(runtime_sensor_config_path),
+        psk_config=str(runtime_psk_config_path),
+        mosquitto_config=str(runtime_dir / DEFAULT_RUNTIME_MOSQUITTO_CONFIG),
         web_port=args.web_port,
-        log_recorder=LogRecorder(max_lines=MAX_LOG_LINES, log_path=log_file_path),
-        runtime_psk_map=load_psk_map(psk_config_path),
+        runtime_dir=str(runtime_dir),
+        started_at=started_at,
+        log_recorder=LogRecorder(max_lines=MAX_LOG_LINES, log_path=runtime_log_path),
+        runtime_psk_map=load_psk_map(runtime_psk_config_path),
+        sensor_config_data=sensor_config_data,
     )
 
     dashboard = None
@@ -687,13 +847,23 @@ def main() -> int:
         if args.web:
             dashboard = start_dashboard(state, open_browser=not args.no_browser)
         if args.mosquitto:
-            start_process('mosquitto', 'broker', build_mosquitto_command(mosquitto_config_path), state)
+            start_process(
+                'mosquitto',
+                'broker',
+                build_mosquitto_command(Path(state.mosquitto_config)),
+                state,
+            )
             time.sleep(1.0)
         if args.center:
             start_process(
                 'center',
                 'center',
-                build_center_command(sensor_config_path, psk_config_path, args.host, args.port),
+                build_center_command(
+                    Path(state.sensor_config),
+                    Path(state.psk_config),
+                    args.host,
+                    args.port,
+                ),
                 state,
             )
             time.sleep(1.0)
@@ -701,7 +871,13 @@ def main() -> int:
             start_process(
                 sensor_id,
                 'sensor',
-                build_sensor_command(sensor_id, sensor_config_path, psk_config_path, args.host, args.port),
+                build_sensor_command(
+                    sensor_id,
+                    Path(state.sensor_config),
+                    Path(state.psk_config),
+                    args.host,
+                    args.port,
+                ),
                 state,
             )
             time.sleep(0.3)

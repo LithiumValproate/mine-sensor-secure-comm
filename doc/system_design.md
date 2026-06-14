@@ -42,7 +42,8 @@ flowchart LR
     subgraph Mine["井下传感器侧"]
         S1["temperature_sensor_01"]
         S2["gas_sensor_01"]
-        S3["gas_sensor_02"]
+        S3["temperature_sensor_02"]
+        S4["gas_sensor_02"]
     end
 
     B["Mosquitto Broker\nMQTT over mTLS"]
@@ -52,6 +53,7 @@ flowchart LR
     S1 -->|"mTLS + encrypted payload"| B
     S2 -->|"mTLS + encrypted payload"| B
     S3 -->|"mTLS + encrypted payload"| B
+    S4 -->|"mTLS + encrypted payload"| B
     B -->|"mine/+/data"| C
     B -->|"mine/+/status"| C
     T -->|"attack/perf tests"| B

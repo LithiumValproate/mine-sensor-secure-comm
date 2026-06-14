@@ -105,6 +105,66 @@ def test_build_sensor_command_uses_sensor_cli() -> None:
     assert 'config/sensors.toml' in command
 
 
+def test_prepare_runtime_paths_creates_session_subdirectory(tmp_path: Path) -> None:
+    """运行目录应位于日志根目录下的时间戳子目录中。"""
+    session_name = MODULE.runtime_session_name(1718380800.0)
+    runtime_dir, log_path = MODULE.prepare_runtime_paths(
+        tmp_path / 'logs' / 'launcher.jsonl',
+        1718380800.0,
+    )
+
+    assert runtime_dir == tmp_path / 'logs' / session_name
+    assert log_path == runtime_dir / 'launcher.jsonl'
+
+
+def test_initialize_runtime_workspace_copies_runtime_files(tmp_path: Path) -> None:
+    """启动时应在本次运行目录中创建配置和日志目标。"""
+    session_name = MODULE.runtime_session_name(1718380800.0)
+    sensor_config_path = tmp_path / 'config' / 'sensors.toml'
+    sensor_config_path.parent.mkdir(parents=True)
+    sensor_config_path.write_text(
+        '[simulation]\n'
+        'default_interval_seconds = 0.5\n'
+        'locations = ["采煤面"]\n'
+        '\n'
+        '[units]\n'
+        'gas = "%CH4"\n'
+        '\n'
+        '[sensors.gas_sensor_01]\n'
+        'type = "gas"\n'
+        'unit = "%CH4"\n'
+        'location = "采煤面"\n'
+        'interval_seconds = 0.5\n'
+        '\n'
+        '[mqtt]\n'
+        'host = "localhost"\n',
+        encoding='utf-8',
+    )
+    psk_config_path = tmp_path / 'config' / 'psk.json'
+    psk_config_path.write_text(
+        '{"gas_sensor_01":{"psk_id":"gas_sensor_01","psk_hex":"' + '11' * 32 + '"}}',
+        encoding='utf-8',
+    )
+    mosquitto_config_path = tmp_path / 'config' / 'mosquitto.conf'
+    mosquitto_config_path.write_text('listener 8883\n', encoding='utf-8')
+
+    runtime_dir, runtime_log_path, runtime_sensor_config_path, runtime_psk_config_path = (
+        MODULE.initialize_runtime_workspace(
+            sensor_config_path=sensor_config_path,
+            psk_config_path=psk_config_path,
+            mosquitto_config_path=mosquitto_config_path,
+            log_path=tmp_path / 'logs' / 'launcher.jsonl',
+            started_at=1718380800.0,
+        )
+    )
+
+    assert runtime_dir == tmp_path / 'logs' / session_name
+    assert runtime_log_path == runtime_dir / 'launcher.jsonl'
+    assert runtime_sensor_config_path.read_text(encoding='utf-8')
+    assert runtime_psk_config_path.read_text(encoding='utf-8')
+    assert (runtime_dir / 'mosquitto.conf').read_text(encoding='utf-8') == 'listener 8883\n'
+
+
 def test_build_runtime_sensor_spec_uses_config_defaults() -> None:
     """运行时传感器规格应使用配置中的默认值。"""
     spec = MODULE.build_runtime_sensor_spec(
@@ -158,8 +218,12 @@ def test_build_runtime_sensor_spec_accepts_overrides() -> None:
     assert spec.unit == '°C'
 
 
-def test_launcher_state_add_runtime_sensor_updates_runtime_config() -> None:
+def test_launcher_state_add_runtime_sensor_updates_runtime_config(tmp_path: Path) -> None:
     """启动器状态应接管运行时新增传感器配置。"""
+    runtime_dir = tmp_path / 'runtime'
+    sensor_config_path = runtime_dir / 'sensors.toml'
+    psk_config_path = runtime_dir / 'psk.json'
+    runtime_dir.mkdir(parents=True, exist_ok=True)
     state = MODULE.LauncherState(
         sensor_ids=['gas_sensor_01'],
         sensor_catalog={
@@ -172,11 +236,27 @@ def test_launcher_state_add_runtime_sensor_updates_runtime_config() -> None:
                 'thresholds': {'warning': 1.0, 'critical': 1.5},
             },
         },
-        sensor_config='config/sensors.toml',
-        psk_config='config/psk.json',
+        sensor_config=str(sensor_config_path),
+        psk_config=str(psk_config_path),
         mosquitto_config='config/mosquitto.conf',
         web_port=8000,
         runtime_psk_map={'gas_sensor_01': '11' * 32},
+        sensor_config_data={
+            'simulation': {
+                'default_interval_seconds': 0.5,
+                'locations': ['采煤面'],
+            },
+            'units': {'gas': '%CH4'},
+            'sensors': {
+                'gas_sensor_01': {
+                    'type': 'gas',
+                    'unit': '%CH4',
+                    'location': '采煤面',
+                    'interval_seconds': 0.5,
+                },
+            },
+            'thresholds': {'gas': {'warning': 1.0, 'critical': 1.5}},
+        },
     )
     spec = MODULE.RuntimeSensorSpec(
         sensor_id='gas_sensor_02',
@@ -197,6 +277,8 @@ def test_launcher_state_add_runtime_sensor_updates_runtime_config() -> None:
     assert state.runtime_sensor_specs['gas_sensor_02'] == spec
     assert snapshot['sensors'][1]['location'] == '回风巷'
     assert snapshot['logs'][-1]['line'] == 'registered runtime sensor gas_sensor_02'
+    assert 'gas_sensor_02' in sensor_config_path.read_text(encoding='utf-8')
+    assert 'gas_sensor_02' in psk_config_path.read_text(encoding='utf-8')
 
 
 def test_launcher_state_rejects_duplicate_runtime_sensor() -> None:
