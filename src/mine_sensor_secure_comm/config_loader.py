@@ -45,10 +45,10 @@ def load_yaml(path: str | Path) -> dict[str, Any]:
 
 
 def load_toml(path: str | Path) -> dict[str, Any]:
-    """Load a TOML object from disk.
+    """从磁盘加载 TOML 对象。
 
-    Arg:
-        path: TOML configuration file path.
+    Args:
+        path: TOML 配置文件路径。
     """
     with Path(path).open('rb') as config_file:
         data = tomllib.load(config_file)
@@ -58,10 +58,10 @@ def load_toml(path: str | Path) -> dict[str, Any]:
 
 
 def load_sensor_config(path: str | Path) -> dict[str, Any]:
-    """Load a sensor configuration file by suffix.
+    """按文件后缀加载传感器配置文件。
 
-    Arg:
-        path: Sensor configuration file path.
+    Args:
+        path: 传感器配置文件路径。
     """
     config_path = Path(path)
     if config_path.suffix.lower() == '.toml':

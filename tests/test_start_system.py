@@ -91,7 +91,7 @@ def test_select_config_with_example_uses_example_file(tmp_path: Path) -> None:
 
 
 def test_build_sensor_command_uses_sensor_cli() -> None:
-    """The launcher should call the real sensor CLI entrypoint."""
+    """启动器应调用真正的传感器 CLI 入口。"""
     command = MODULE.build_sensor_command(
         'gas_sensor_01',
         Path('config/sensors.toml'),
@@ -139,7 +139,7 @@ def test_launcher_state_ingests_center_reading_and_alert() -> None:
 
 
 def test_launcher_state_builds_frontend_sensor_map() -> None:
-    """The compatible frontend API returns sensor data keyed by sensor ID."""
+    """兼容前端 API 应返回按传感器 ID 组织的数据。"""
     state = MODULE.LauncherState(
         sensor_ids=['temperature_sensor_01', 'gas_sensor_01'],
         sensor_catalog={
@@ -180,7 +180,7 @@ def test_launcher_state_builds_frontend_sensor_map() -> None:
 
 
 def test_launcher_state_frontend_sensor_map_uses_placeholder_without_reading() -> None:
-    """The compatible frontend API uses placeholders before readings arrive."""
+    """兼容前端 API 应在读数到达前使用占位值。"""
     state = MODULE.LauncherState(
         sensor_ids=['gas_sensor_01'],
         sensor_catalog={
