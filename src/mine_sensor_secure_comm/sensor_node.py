@@ -15,8 +15,8 @@ class SensorNode:
 
     sensor_id: str
     location: str
-    sensor_type: str = 'gas'
-    unit: str = '%CH4'
+    sensor_type: str
+    unit: str
     interval_seconds: float = 0.5
 
     _next_sequence: ClassVar[int] = 1
@@ -26,7 +26,7 @@ class SensorNode:
             cls,
             config_path: str | Path = DEFAULT_SENSOR_CONFIG,
             *,
-            sensor_type: str = 'gas',
+            sensor_type: str,
             unit: str | None = None,
             interval_sec: float | None = None,
             rng: random.Random | None = None,

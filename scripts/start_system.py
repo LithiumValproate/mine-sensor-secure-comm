@@ -7,6 +7,8 @@ import argparse
 import json
 import mimetypes
 import os
+import random
+import secrets
 import signal
 import subprocess
 import sys
@@ -18,7 +20,7 @@ from dataclasses import dataclass, field
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 from urllib.parse import urlparse
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
@@ -26,7 +28,7 @@ SRC_DIR = PROJECT_DIR / 'src'
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from mine_sensor_secure_comm.config_loader import load_sensor_config  # noqa: E402
+from mine_sensor_secure_comm.config_loader import load_psk_map, load_sensor_config  # noqa: E402
 from mine_sensor_secure_comm.log_records import LogRecorder  # noqa: E402
 
 WEB_DIR = PROJECT_DIR / 'web'
@@ -34,10 +36,42 @@ DEFAULT_WEB_PORT = 8000
 MAX_LOG_LINES = 200
 MAX_ALERTS = 100
 DEFAULT_LOG_FILE = 'logs/launcher.jsonl'
+RUNTIME_PSK_BYTES = 32
+
+
+@dataclass(frozen=True)
+class RuntimeSensorSpec:
+    """运行时新增传感器的完整配置规格。"""
+
+    sensor_id: str
+    sensor_type: str
+    unit: str
+    location: str
+    interval_seconds: float
+    psk_hex: str
+    thresholds: dict[str, float]
+
+    def catalog_entry(self) -> dict[str, Any]:
+        """转换为控制台和启动器使用的传感器目录项。"""
+        return {
+            'sensor_id': self.sensor_id,
+            'sensor_type': self.sensor_type,
+            'unit': self.unit,
+            'location': self.location,
+            'interval_seconds': self.interval_seconds,
+            'thresholds': self.thresholds,
+        }
+
+    def psk_entry(self) -> dict[str, str]:
+        """转换为 PSK 配置文件中的单个传感器条目。"""
+        return {
+            'psk_id': self.sensor_id,
+            'psk_hex': self.psk_hex,
+        }
 
 
 def load_sensor_catalog(sensor_config_path: Path) -> dict[str, dict[str, Any]]:
-    """Load configured sensors with metadata used by the dashboard."""
+    """加载控制台使用的传感器目录元数据。"""
     payload = load_sensor_config(sensor_config_path)
     if not isinstance(payload, dict):
         raise ValueError(f"invalid sensor config object in {sensor_config_path}")
@@ -68,8 +102,124 @@ def load_sensor_catalog(sensor_config_path: Path) -> dict[str, dict[str, Any]]:
 
 
 def load_sensor_ids(sensor_config_path: Path) -> list[str]:
-    """Load all sensor IDs from sensor configuration."""
+    """从传感器配置中加载所有传感器 ID。"""
     return list(load_sensor_catalog(sensor_config_path).keys())
+
+
+def build_runtime_sensor_spec(
+        sensor_config: dict[str, Any],
+        existing_sensor_ids: Iterable[str],
+        *,
+        sensor_type: str = 'gas',
+        location: str | None = None,
+        interval_seconds: float | None = None,
+        psk_hex: str | None = None,
+        rng: random.Random | None = None,
+) -> RuntimeSensorSpec:
+    """根据静态配置生成运行时新增传感器规格。
+
+    Args:
+        sensor_config: 已加载的传感器 TOML 配置。
+        existing_sensor_ids: 当前已有的传感器 ID 集合。
+        sensor_type: 要新增的传感器类型。
+        location: 可选的位置覆盖值，未提供时从配置随机选择。
+        interval_seconds: 可选的采样间隔覆盖值，未提供时使用配置默认值。
+        psk_hex: 可选的 PSK 十六进制字符串，未提供时自动生成。
+        rng: 可选的随机数生成器，用于确定性测试。
+    """
+    selected_type = str(sensor_type)
+    simulation = _runtime_table(sensor_config, 'simulation')
+    units = _runtime_table(sensor_config, 'units')
+    thresholds = _runtime_table(sensor_config, 'thresholds')
+    sensor_thresholds = thresholds.get(selected_type, {})
+    if not isinstance(sensor_thresholds, dict):
+        sensor_thresholds = {}
+
+    selected_location = location or _choose_runtime_location(simulation, rng)
+    selected_interval = (
+        _runtime_positive_float(interval_seconds, 'interval_seconds')
+        if interval_seconds is not None
+        else _runtime_positive_float(
+            simulation.get('default_interval_seconds'),
+            'simulation.default_interval_seconds',
+        )
+    )
+    selected_psk = psk_hex or secrets.token_hex(RUNTIME_PSK_BYTES)
+    _validate_runtime_psk(selected_psk)
+
+    selected_unit = units.get(selected_type)
+    if not isinstance(selected_unit, str):
+        raise ValueError(f"unit for {selected_type} missing")
+
+    return RuntimeSensorSpec(
+        sensor_id=next_runtime_sensor_id(existing_sensor_ids, selected_type),
+        sensor_type=selected_type,
+        unit=selected_unit,
+        location=str(selected_location),
+        interval_seconds=selected_interval,
+        psk_hex=selected_psk,
+        thresholds={
+            key: float(value)
+            for key, value in sensor_thresholds.items()
+            if isinstance(value, int | float)
+        },
+    )
+
+
+def next_runtime_sensor_id(existing_sensor_ids: Iterable[str], sensor_type: str) -> str:
+    """按现有 ID 为新增传感器分配下一个顺序 ID。"""
+    prefix = f'{sensor_type}_sensor_'
+    next_number = 1
+    for sensor_id in existing_sensor_ids:
+        if not sensor_id.startswith(prefix):
+            continue
+        suffix = sensor_id.removeprefix(prefix)
+        if suffix.isdecimal():
+            next_number = max(next_number, int(suffix) + 1)
+    return f'{prefix}{next_number:02d}'
+
+
+def _runtime_table(config: dict[str, Any], name: str) -> dict[str, Any]:
+    """读取运行时传感器生成需要的配置段。"""
+    table = config.get(name, {})
+    if not isinstance(table, dict):
+        raise ValueError(f"invalid {name} section")
+    return table
+
+
+def _choose_runtime_location(
+        simulation: dict[str, Any],
+        rng: random.Random | None,
+) -> str:
+    """从配置候选位置中选择一个运行时传感器位置。"""
+    locations = simulation.get('locations')
+    if not isinstance(locations, list) or not locations:
+        raise ValueError('simulation.locations must be a non-empty list')
+    if not all(isinstance(item, str) for item in locations):
+        raise ValueError('simulation.locations must contain only strings')
+    chooser = rng if rng is not None else random
+    return chooser.choice(locations)
+
+
+def _runtime_positive_float(value: Any, name: str) -> float:
+    """把运行时传感器数值配置转换为正浮点数。"""
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be a number") from exc
+    if number <= 0:
+        raise ValueError(f"{name} must be greater than 0")
+    return number
+
+
+def _validate_runtime_psk(psk_hex: str) -> None:
+    """校验运行时 PSK 是否为 32 字节十六进制字符串。"""
+    try:
+        raw = bytes.fromhex(psk_hex)
+    except ValueError as exc:
+        raise ValueError('psk_hex must be hexadecimal') from exc
+    if len(raw) != RUNTIME_PSK_BYTES:
+        raise ValueError('psk_hex must encode 32 bytes')
 
 
 def select_mosquitto_config(project_dir: Path, explicit_path: str | None) -> Path:
@@ -84,7 +234,8 @@ def select_mosquitto_config(project_dir: Path, explicit_path: str | None) -> Pat
 
 def select_config_with_example(project_dir: Path, explicit_path: str, example_suffix: str) -> Path:
     """选择正式配置，不存在时回退到示例配置。"""
-    config_path = (project_dir / explicit_path).resolve() if not Path(explicit_path).is_absolute() else Path(explicit_path)
+    config_path = (project_dir / explicit_path).resolve() if not Path(explicit_path).is_absolute() else Path(
+        explicit_path)
     if config_path.exists():
         return config_path
     example_path = Path(str(config_path) + example_suffix)
@@ -143,6 +294,8 @@ class LauncherState:
     started_at: float = field(default_factory=time.time)
     processes: list[ManagedProcess] = field(default_factory=list)
     log_recorder: LogRecorder = field(default_factory=lambda: LogRecorder(max_lines=MAX_LOG_LINES))
+    runtime_psk_map: dict[str, str] = field(default_factory=dict)
+    runtime_sensor_specs: dict[str, RuntimeSensorSpec] = field(default_factory=dict)
     readings: dict[str, dict[str, Any]] = field(default_factory=dict)
     alerts: deque[dict[str, Any]] = field(default_factory=lambda: deque(maxlen=MAX_ALERTS))
 
@@ -151,6 +304,25 @@ class LauncherState:
         record = self.log_recorder.append(source, line)
         if source == 'center':
             self.ingest_center_line(record['line'])
+
+    def add_runtime_sensor(self, spec: RuntimeSensorSpec) -> dict[str, Any]:
+        """把运行时新增传感器加入启动器状态。
+
+        Args:
+            spec: 运行时新增传感器规格。
+        """
+        if spec.sensor_id in self.sensor_catalog:
+            raise ValueError(f"sensor {spec.sensor_id} already exists")
+        if spec.sensor_id in self.runtime_psk_map:
+            raise ValueError(f"PSK for sensor {spec.sensor_id} already exists")
+
+        entry = spec.catalog_entry()
+        self.sensor_ids.append(spec.sensor_id)
+        self.sensor_catalog[spec.sensor_id] = entry
+        self.runtime_psk_map[spec.sensor_id] = spec.psk_hex
+        self.runtime_sensor_specs[spec.sensor_id] = spec
+        self.add_log('launcher', f"registered runtime sensor {spec.sensor_id}")
+        return entry
 
     def ingest_center_line(self, line: str) -> None:
         """Ingest one JSON line emitted by the center process."""
@@ -180,7 +352,7 @@ class LauncherState:
             payload: dict[str, Any],
             plaintext: dict[str, Any],
     ) -> None:
-        """Update latest reading or status for one sensor."""
+        """更新单个传感器的最新读数或状态。"""
         existing = self.readings.get(sensor_id, {})
         status = plaintext.get('status')
         reading = {
@@ -203,7 +375,7 @@ class LauncherState:
         self.readings[sensor_id] = reading
 
     def _append_alert(self, alert: dict[str, Any]) -> None:
-        """Append a normalized alert for the notification history."""
+        """追加一条规范化后的告警历史。"""
         sensor_id = str(alert.get('sensor_id', 'unknown'))
         details = alert.get('details')
         self.alerts.append({
@@ -219,7 +391,7 @@ class LauncherState:
             self.readings[sensor_id]['last_alert_severity'] = str(alert.get('severity', 'unknown'))
 
     def _sensor_id_from_topic(self, topic: str) -> str:
-        """Extract sensor ID from mine/<sensor_id>/data or status topic."""
+        """从 mine/<sensor_id>/data 或状态主题中提取传感器 ID。"""
         parts = topic.split('/')
         if len(parts) >= 3 and parts[0] == 'mine':
             return parts[1]
@@ -262,7 +434,7 @@ class LauncherState:
         }
 
     def frontend_sensor_map(self) -> dict[str, dict[str, Any]]:
-        """Build the legacy frontend sensor map from current launcher state."""
+        """从当前启动器状态构建兼容前端的传感器映射。"""
         sensors = self.snapshot()['sensors']
         result: dict[str, dict[str, Any]] = {}
         for sensor in sensors:
@@ -507,6 +679,7 @@ def main() -> int:
         mosquitto_config=str(mosquitto_config_path),
         web_port=args.web_port,
         log_recorder=LogRecorder(max_lines=MAX_LOG_LINES, log_path=log_file_path),
+        runtime_psk_map=load_psk_map(psk_config_path),
     )
 
     dashboard = None

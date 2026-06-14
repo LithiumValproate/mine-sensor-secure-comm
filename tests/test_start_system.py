@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import random
 import sys
 from pathlib import Path
 
@@ -102,6 +103,128 @@ def test_build_sensor_command_uses_sensor_cli() -> None:
 
     assert 'mine_sensor_secure_comm.sensor_cli' in command
     assert 'config/sensors.toml' in command
+
+
+def test_build_runtime_sensor_spec_uses_config_defaults() -> None:
+    """运行时传感器规格应使用配置中的默认值。"""
+    spec = MODULE.build_runtime_sensor_spec(
+        {
+            'simulation': {
+                'default_interval_seconds': 0.5,
+                'locations': ['采煤面', '回风巷'],
+            },
+            'units': {'gas': '%CH4'},
+            'thresholds': {'gas': {'warning': 1.0, 'critical': 1.5}},
+        },
+        ['gas_sensor_01', 'temperature_sensor_01'],
+        psk_hex='aa' * 32,
+        rng=random.Random(1),
+    )
+
+    assert spec.sensor_id == 'gas_sensor_02'
+    assert spec.sensor_type == 'gas'
+    assert spec.unit == '%CH4'
+    assert spec.location in {'采煤面', '回风巷'}
+    assert spec.interval_seconds == 0.5
+    assert spec.thresholds == {'warning': 1.0, 'critical': 1.5}
+    assert spec.catalog_entry()['sensor_id'] == 'gas_sensor_02'
+    assert spec.psk_entry() == {
+        'psk_id': 'gas_sensor_02',
+        'psk_hex': 'aa' * 32,
+    }
+
+
+def test_build_runtime_sensor_spec_accepts_overrides() -> None:
+    """运行时传感器规格应允许覆盖位置和采样间隔。"""
+    spec = MODULE.build_runtime_sensor_spec(
+        {
+            'simulation': {
+                'default_interval_seconds': 0.5,
+                'locations': ['采煤面'],
+            },
+            'units': {'temperature': '°C'},
+            'thresholds': {'temperature': {'warning': 45.0, 'critical': 60.0}},
+        },
+        ['temperature_sensor_01'],
+        sensor_type='temperature',
+        location='水泵房',
+        interval_seconds=2.0,
+        psk_hex='bb' * 32,
+    )
+
+    assert spec.sensor_id == 'temperature_sensor_02'
+    assert spec.location == '水泵房'
+    assert spec.interval_seconds == 2.0
+    assert spec.unit == '°C'
+
+
+def test_launcher_state_add_runtime_sensor_updates_runtime_config() -> None:
+    """启动器状态应接管运行时新增传感器配置。"""
+    state = MODULE.LauncherState(
+        sensor_ids=['gas_sensor_01'],
+        sensor_catalog={
+            'gas_sensor_01': {
+                'sensor_id': 'gas_sensor_01',
+                'sensor_type': 'gas',
+                'unit': '%CH4',
+                'location': '采煤面',
+                'interval_seconds': 0.5,
+                'thresholds': {'warning': 1.0, 'critical': 1.5},
+            },
+        },
+        sensor_config='config/sensors.toml',
+        psk_config='config/psk.json',
+        mosquitto_config='config/mosquitto.conf',
+        web_port=8000,
+        runtime_psk_map={'gas_sensor_01': '11' * 32},
+    )
+    spec = MODULE.RuntimeSensorSpec(
+        sensor_id='gas_sensor_02',
+        sensor_type='gas',
+        unit='%CH4',
+        location='回风巷',
+        interval_seconds=0.5,
+        psk_hex='22' * 32,
+        thresholds={'warning': 1.0, 'critical': 1.5},
+    )
+
+    entry = state.add_runtime_sensor(spec)
+    snapshot = state.snapshot()
+
+    assert entry['sensor_id'] == 'gas_sensor_02'
+    assert state.sensor_ids == ['gas_sensor_01', 'gas_sensor_02']
+    assert state.runtime_psk_map['gas_sensor_02'] == '22' * 32
+    assert state.runtime_sensor_specs['gas_sensor_02'] == spec
+    assert snapshot['sensors'][1]['location'] == '回风巷'
+    assert snapshot['logs'][-1]['line'] == 'registered runtime sensor gas_sensor_02'
+
+
+def test_launcher_state_rejects_duplicate_runtime_sensor() -> None:
+    """启动器状态应拒绝重复注册的运行时传感器。"""
+    state = MODULE.LauncherState(
+        sensor_ids=['gas_sensor_01'],
+        sensor_catalog={'gas_sensor_01': {'sensor_id': 'gas_sensor_01'}},
+        sensor_config='config/sensors.toml',
+        psk_config='config/psk.json',
+        mosquitto_config='config/mosquitto.conf',
+        web_port=8000,
+    )
+    spec = MODULE.RuntimeSensorSpec(
+        sensor_id='gas_sensor_01',
+        sensor_type='gas',
+        unit='%CH4',
+        location='回风巷',
+        interval_seconds=0.5,
+        psk_hex='22' * 32,
+        thresholds={},
+    )
+
+    try:
+        state.add_runtime_sensor(spec)
+    except ValueError as exc:
+        assert 'already exists' in str(exc)
+    else:
+        raise AssertionError('duplicate sensor should fail')
 
 
 def test_launcher_state_ingests_center_reading_and_alert() -> None:

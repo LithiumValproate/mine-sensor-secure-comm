@@ -26,6 +26,7 @@ create_cert() {
 create_cert broker localhost "DNS:localhost,IP:127.0.0.1"
 create_cert center center "DNS:center"
 create_cert temperature_sensor_01 temperature_sensor_01 "DNS:temperature_sensor_01"
+create_cert temperature_sensor_02 temperature_sensor_02 "DNS:temperature_sensor_02"
 create_cert gas_sensor_01 gas_sensor_01 "DNS:gas_sensor_01"
 create_cert gas_sensor_02 gas_sensor_02 "DNS:gas_sensor_02"
 

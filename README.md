@@ -92,11 +92,12 @@ Windows、Linux 和 macOS 的完整本地部署说明见 [doc/deployment.md](doc
    mine-sensor --sensor-id gas_sensor_01 --sensor-config config/sensors.toml --psk-config config/psk.json
    ```
 
-也可以启动其他示例传感器：
+默认预设两套点位：采煤面和掘进面，每套包含一个温度传感器和一个瓦斯传感器。也可以启动其他示例传感器：
 
 ```bash
 mine-sensor --sensor-id temperature_sensor_01 --sensor-config config/sensors.toml --psk-config config/psk.json
 mine-sensor --sensor-id gas_sensor_02 --sensor-config config/sensors.toml --psk-config config/psk.json
+mine-sensor --sensor-id temperature_sensor_02 --sensor-config config/sensors.toml --psk-config config/psk.json
 ```
 
 也可以只启动部分组件，例如：

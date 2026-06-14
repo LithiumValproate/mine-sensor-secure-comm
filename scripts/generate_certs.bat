@@ -19,6 +19,7 @@ openssl req -x509 -new -nodes -key "%CERT_DIR%\ca.key" -sha256 -days 3650 -subj 
 call :createCert broker localhost "DNS:localhost,IP:127.0.0.1" || exit /b 1
 call :createCert center center "DNS:center" || exit /b 1
 call :createCert temperature_sensor_01 temperature_sensor_01 "DNS:temperature_sensor_01" || exit /b 1
+call :createCert temperature_sensor_02 temperature_sensor_02 "DNS:temperature_sensor_02" || exit /b 1
 call :createCert gas_sensor_01 gas_sensor_01 "DNS:gas_sensor_01" || exit /b 1
 call :createCert gas_sensor_02 gas_sensor_02 "DNS:gas_sensor_02" || exit /b 1
 
