@@ -95,6 +95,7 @@ coverage.xml
 # Reports
 /实验报告*.md
 /实验报告*.pdf
+/*.pptx
 
 # Deprecated files
 Deprecated/
