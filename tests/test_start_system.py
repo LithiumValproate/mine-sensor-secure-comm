@@ -19,7 +19,7 @@ SPEC.loader.exec_module(MODULE)
 def test_select_mosquitto_config_falls_back_to_example(tmp_path: Path) -> None:
     """未提供正式配置时应回退到示例配置。"""
     (tmp_path / 'config').mkdir()
-    example_path = tmp_path / 'config' / 'mosquitto.conf.example'
+    example_path = tmp_path / 'config' / 'mosquitto.conf'
     example_path.write_text('listener 8883\n', encoding='utf-8')
 
     selected = MODULE.select_mosquitto_config(tmp_path, None)
@@ -32,7 +32,7 @@ def test_select_mosquitto_config_prefers_real_file(tmp_path: Path) -> None:
     (tmp_path / 'config').mkdir()
     real_path = tmp_path / 'config' / 'mosquitto.conf'
     real_path.write_text('listener 1883\n', encoding='utf-8')
-    (tmp_path / 'config' / 'mosquitto.conf.example').write_text('listener 8883\n', encoding='utf-8')
+    (tmp_path / 'config' / 'mosquitto.conf').write_text('listener 8883\n', encoding='utf-8')
 
     selected = MODULE.select_mosquitto_config(tmp_path, None)
 

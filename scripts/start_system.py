@@ -79,7 +79,7 @@ def select_mosquitto_config(project_dir: Path, explicit_path: str | None) -> Pat
     default_path = project_dir / 'config' / 'mosquitto.conf'
     if default_path.exists():
         return default_path
-    return project_dir / 'config' / 'mosquitto.conf.example'
+    return project_dir / 'config' / 'mosquitto.conf'
 
 
 def select_config_with_example(project_dir: Path, explicit_path: str, example_suffix: str) -> Path:

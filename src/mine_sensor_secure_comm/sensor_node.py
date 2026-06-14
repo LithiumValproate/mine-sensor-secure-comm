@@ -31,8 +31,7 @@ class SensorNode:
             interval_sec: float | None = None,
             rng: random.Random | None = None,
     ) -> SensorNode:
-        """
-        从 TOML 配置创建传感器节点。
+        """从 TOML 配置创建传感器节点。
 
         Args:
             config_path: TOML 传感器配置文件路径。
