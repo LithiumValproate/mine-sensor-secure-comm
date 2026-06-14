@@ -6,7 +6,6 @@ import argparse
 import json
 import sys
 import time
-from typing import Any
 
 from .config_loader import load_psk_map, load_sensor_config, load_sensor_entry
 from .message import data_topic, encode_json, now_ms, status_topic
@@ -114,6 +113,8 @@ def cli() -> int:
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 1
+
+
 def _lookup_sensor_psk(psk_map: dict[str, str], sensor_id: str) -> str:
     """读取指定传感器 PSK，不存在时给出明确错误。
 

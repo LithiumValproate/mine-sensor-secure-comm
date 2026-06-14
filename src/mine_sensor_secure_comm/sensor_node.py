@@ -65,7 +65,7 @@ class SensorNode:
                     config,
                     resolved_sensor_type,
                     config_path=config_path,
-                )
+                ),
             )
             resolved_location = str(sensor['location'])
             resolved_interval = _normalize_interval(

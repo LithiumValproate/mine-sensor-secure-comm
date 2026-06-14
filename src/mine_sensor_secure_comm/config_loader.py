@@ -126,13 +126,13 @@ def load_threshold_map(
     """
     threshold_map: dict[str, dict[str, float]] = {}
     for sensor_type, entry in load_sensor_type_map(
-        sensor_config,
-        config_path=config_path,
+            sensor_config,
+            config_path=config_path,
     ).items():
         thresholds: dict[str, float] = {}
         for source_key, target_key in (
-            ('warning_threshold', 'warning'),
-            ('critical_threshold', 'critical'),
+                ('warning_threshold', 'warning'),
+                ('critical_threshold', 'critical'),
         ):
             value = entry.get(source_key)
             if value is None:

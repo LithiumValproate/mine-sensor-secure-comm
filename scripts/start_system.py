@@ -10,7 +10,6 @@ import os
 import random
 import secrets
 import shutil
-import signal
 import subprocess
 import sys
 import threading

@@ -9,4 +9,4 @@
 - `start_system.bat`
   Windows 下的一键启动入口，等价于运行 `python scripts\start_system.py --all --web`。
 - `run_performance_tests.py`
-  运行性能测试并导出报告用柱状图，默认输出到 `performance_outputs/`，会生成 `performance_results.csv`、`performance_summary.json`、`latency_by_encryption.png` 和 `throughput_by_sensor_count.png`。
+  运行性能测试并导出报告用柱状图，默认输出到 `performance_outputs/`，会生成 `performance_results.csv`、`performance_summary.json`、`latency_by_encryption.png` 和 `throughput_by_sensor_count.png`。吞吐量场景默认使用 `0.001s` 的极小发送间隔，避免 `4 x 1000` 并发压测时订阅端消息队列过载导致超时；如需更激进的压测，可手动覆盖 `--throughput-interval-seconds`。
