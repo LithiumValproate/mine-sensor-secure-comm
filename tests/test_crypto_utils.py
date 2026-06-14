@@ -1,3 +1,5 @@
+# 这组测试覆盖应用层加解密辅助函数的正确性与边界条件。
+
 from __future__ import annotations
 
 import pytest

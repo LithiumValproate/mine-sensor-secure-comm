@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import random
-import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar
+
+from .config_loader import load_sensor_config, load_sensor_entry
 
 DEFAULT_SENSOR_CONFIG = Path(__file__).resolve().parents[2] / 'config' / 'sensors.toml'
 
@@ -26,7 +27,8 @@ class SensorNode:
             cls,
             config_path: str | Path = DEFAULT_SENSOR_CONFIG,
             *,
-            sensor_type: str,
+            sensor_id: str | None = None,
+            sensor_type: str | None = None,
             unit: str | None = None,
             interval_sec: float | None = None,
             rng: random.Random | None = None,
@@ -35,15 +37,45 @@ class SensorNode:
 
         Args:
             config_path: TOML 传感器配置文件路径。
-            sensor_type: 传感器类型。
+            sensor_id: 可选的传感器编号；提供时按当前静态配置读取完整传感器条目。
+            sensor_type: 传感器类型；仅在未提供 `sensor_id` 时用于模拟生成节点。
             unit: 可选的传感器单位，未提供时按类型从配置读取。
             interval_sec: 可选的采样间隔覆盖值，单位为秒。
             rng: 可选的随机数生成器，用于确定性测试。
         """
-        config = _load_toml(config_path)
+        config = load_sensor_config(config_path)
         simulation = config.get('simulation', {})
         if not isinstance(simulation, dict):
             raise ValueError(f"invalid simulation section in {config_path}")
+
+        if sensor_id is not None:
+            sensor = load_sensor_entry(
+                config,
+                sensor_id,
+                config_path=config_path,
+            )
+            resolved_sensor_type = str(sensor['type'])
+            resolved_unit = str(sensor.get('unit') or unit or _load_unit(config, resolved_sensor_type, config_path))
+            resolved_location = str(sensor['location'])
+            resolved_interval = _normalize_interval(
+                sensor.get('interval_seconds', interval_sec if interval_sec is not None else 0.5),
+                'interval_seconds',
+            )
+            if interval_sec is not None:
+                resolved_interval = _normalize_interval(
+                    interval_sec,
+                    'interval_sec',
+                )
+            return cls(
+                sensor_id=sensor_id,
+                sensor_type=resolved_sensor_type,
+                unit=resolved_unit,
+                location=resolved_location,
+                interval_seconds=resolved_interval,
+            )
+
+        if sensor_type is None:
+            raise ValueError('sensor_type is required when sensor_id is not provided')
 
         locations = _load_locations(simulation, config_path)
         sensor_unit = unit or _load_unit(config, sensor_type, config_path)
@@ -82,16 +114,6 @@ class SensorNode:
         sequence = cls._next_sequence
         cls._next_sequence += 1
         return f"sensor_{sequence:02d}"
-
-
-def _load_toml(path: str | Path) -> dict[str, Any]:
-    """从磁盘加载 TOML 对象。"""
-    config_path = Path(path)
-    with config_path.open('rb') as config_file:
-        payload = tomllib.load(config_file)
-    if not isinstance(payload, dict):
-        raise ValueError(f"expected TOML object in {config_path}")
-    return payload
 
 
 def _load_locations(simulation: dict[str, Any], config_path: str | Path) -> list[str]:

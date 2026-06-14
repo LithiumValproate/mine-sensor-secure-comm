@@ -1,4 +1,4 @@
-"""sensor_cli failure-path tests."""
+# 这组测试覆盖传感器 CLI 在缺失配置时的失败路径。
 
 from __future__ import annotations
 

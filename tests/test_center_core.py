@@ -1,3 +1,5 @@
+# 这组测试覆盖中心端核心校验、告警和拒绝分支。
+
 from __future__ import annotations
 
 from mine_sensor_secure_comm.center_core import GroundCenterCore
