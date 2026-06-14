@@ -1,4 +1,4 @@
-"""Runtime log recording utilities."""
+"""运行时日志记录工具。"""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from typing import Any
 
 
 class LogRecorder:
-    """Keep recent logs in memory and optionally append them to a JSONL file."""
+    """在内存保留近期日志，并可追加写入 JSONL 文件。"""
 
     def __init__(
             self,
@@ -18,11 +18,11 @@ class LogRecorder:
             max_lines: int,
             log_path: Path | None = None,
     ) -> None:
-        """Initialize a log recorder.
+        """初始化日志记录器。
 
-        Arg:
-            max_lines: Maximum number of recent records kept for dashboard reads.
-            log_path: Optional JSONL file used for persistent runtime records.
+        Args:
+            max_lines: 为控制台读取保留的近期记录数上限。
+            log_path: 可选的 JSONL 文件路径，用于持久化运行时记录。
         """
         self.max_lines = max_lines
         self.log_path = log_path
@@ -31,7 +31,7 @@ class LogRecorder:
             self._load_recent_records()
 
     def append(self, source: str, line: str, *, ts: str | None = None) -> dict[str, str]:
-        """Append one normalized log record."""
+        """追加一条标准化日志记录。"""
         record = {
             'ts': ts or time.strftime('%H:%M:%S'),
             'source': str(source),
@@ -42,11 +42,11 @@ class LogRecorder:
         return record
 
     def snapshot(self) -> list[dict[str, str]]:
-        """Return recent records in insertion order."""
+        """按插入顺序返回近期日志记录。"""
         return list(self.records)
 
     def _load_recent_records(self) -> None:
-        """Load valid recent JSONL records from the configured log path."""
+        """从配置的日志路径加载有效的近期 JSONL 记录。"""
         if self.log_path is None or not self.log_path.exists():
             return
         for raw_line in self.log_path.read_text(encoding='utf-8').splitlines():
@@ -59,7 +59,7 @@ class LogRecorder:
                 self.records.append(record)
 
     def _write_record(self, record: dict[str, str]) -> None:
-        """Append a JSONL record when persistence is configured."""
+        """在配置持久化路径时追加一条 JSONL 记录。"""
         if self.log_path is None:
             return
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -67,7 +67,7 @@ class LogRecorder:
             output.write(json.dumps(record, ensure_ascii=False) + '\n')
 
     def _normalize_record(self, payload: Any) -> dict[str, str] | None:
-        """Normalize one decoded JSONL value into the public log shape."""
+        """把解码后的 JSONL 值标准化为公开日志结构。"""
         if not isinstance(payload, dict):
             return None
         if not all(key in payload for key in ('ts', 'source', 'line')):

@@ -23,9 +23,8 @@ def threshold_alert(
         value: float,
         thresholds: dict[str, dict[str, float]],
 ) -> Alert | None:
-    """
-    根据解密后的传感器读数返回阈值告警。
-    
+    """根据解密后的传感器读数返回阈值告警。
+
     Args:
         sensor_id: 传感器编号。
         sensor_type: 传感器类型，用于查找对应阈值。
