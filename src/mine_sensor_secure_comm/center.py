@@ -6,7 +6,12 @@ import argparse
 import json
 
 from .center_core import GroundCenterCore
-from .config_loader import load_psk_map, load_sensor_config, load_sensor_map
+from .config_loader import (
+    load_psk_map,
+    load_sensor_config,
+    load_sensor_map,
+    load_threshold_map,
+)
 from .message import decode_json, now_ms
 from .mqtt_runtime import certificate_common_name, make_tls_client
 
@@ -23,9 +28,6 @@ def build_core(sensor_config_path: str, psk_config_path: str) -> GroundCenterCor
         sensor_config,
         config_path=sensor_config_path,
     )
-    thresholds = sensor_config.get('thresholds', {})
-    if not isinstance(thresholds, dict):
-        raise ValueError(f"invalid thresholds section in {sensor_config_path}")
     sensor_types = {
         sensor_id: str(config['type'])
         for sensor_id, config in sensors.items()
@@ -33,7 +35,10 @@ def build_core(sensor_config_path: str, psk_config_path: str) -> GroundCenterCor
     return GroundCenterCore(
         psk_map=load_psk_map(psk_config_path),
         sensor_types=sensor_types,
-        thresholds=thresholds,
+        thresholds=load_threshold_map(
+            sensor_config,
+            config_path=sensor_config_path,
+        ),
     )
 
 

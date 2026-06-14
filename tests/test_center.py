@@ -18,13 +18,14 @@ def test_build_core_rejects_invalid_sensors_section(
         '[sensors]\n'
         'gas_sensor_01 = "invalid"\n'
         '\n'
+        '[sensor_types.gas]\n'
+        'unit = "%CH4"\n'
+        'warning_threshold = 1.0\n'
+        'critical_threshold = 1.5\n'
+        '\n'
         '[mqtt]\n'
         'host = "localhost"\n'
-        'port = 8883\n'
-        '\n'
-        '[thresholds.gas]\n'
-        'warning = 1.0\n'
-        'critical = 1.5\n',
+        'port = 8883\n',
         encoding='utf-8',
     )
     psk_config = tmp_path / 'psk.json'

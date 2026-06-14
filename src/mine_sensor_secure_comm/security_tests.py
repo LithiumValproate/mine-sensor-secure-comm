@@ -5,7 +5,12 @@ from __future__ import annotations
 import argparse
 
 from .center_core import GroundCenterCore
-from .config_loader import load_psk_map, load_sensor_config, load_sensor_entry
+from .config_loader import (
+    load_psk_map,
+    load_sensor_config,
+    load_sensor_entry,
+    load_threshold_map,
+)
 from .crypto_utils import encrypt_payload, new_boot_random
 from .message import now_ms
 
@@ -28,7 +33,7 @@ def run_scenarios(
     core = GroundCenterCore(
         psk_map=psk_map,
         sensor_types={sensor_id: sensor_type},
-        thresholds=sensor_config.get('thresholds', {}),
+        thresholds=load_threshold_map(sensor_config),
     )
     boot_random = new_boot_random()
     timestamp_ms = now_ms()

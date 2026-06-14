@@ -22,13 +22,14 @@ def write_sensor_config(
     quoted_locations = ', '.join(f'"{location}"' for location in location_values)
     primary_location = location_values[0] if location_values else '采煤工作面'
     config_path.write_text(
-        '[simulation]\n'
         f'default_interval_seconds = {interval_seconds}\n'
         f'locations = [{quoted_locations}]\n'
         '\n'
-        '[units]\n'
-        'gas = "%CH4"\n'
-        'temperature = "°C"\n'
+        '[sensor_types.gas]\n'
+        'unit = "%CH4"\n'
+        '\n'
+        '[sensor_types.temperature]\n'
+        'unit = "°C"\n'
         '\n'
         '[sensors.gas_sensor_01]\n'
         'type = "gas"\n'
@@ -100,7 +101,7 @@ def test_from_config_simulation_mode_requires_locations(tmp_path: Path) -> None:
     """模拟生成模式仍要求提供至少一个候选位置。"""
     config_path = write_sensor_config(tmp_path, locations=[])
 
-    with pytest.raises(ValueError, match='simulation.locations'):
+    with pytest.raises(ValueError, match='locations'):
         SensorNode.from_config(
             config_path,
             sensor_type='gas',

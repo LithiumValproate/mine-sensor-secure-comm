@@ -65,9 +65,10 @@ def test_load_sensor_catalog_includes_thresholds(tmp_path: Path) -> None:
         'unit = "%LEL"\n'
         'location = "mine-A-03"\n'
         '\n'
-        '[thresholds.gas]\n'
-        'warning = 1.0\n'
-        'critical = 1.5\n',
+        '[sensor_types.gas]\n'
+        'unit = "%LEL"\n'
+        'warning_threshold = 1.0\n'
+        'critical_threshold = 1.5\n',
         encoding='utf-8',
     )
 
@@ -122,12 +123,13 @@ def test_initialize_runtime_workspace_copies_runtime_files(tmp_path: Path) -> No
     sensor_config_path = tmp_path / 'config' / 'sensors.toml'
     sensor_config_path.parent.mkdir(parents=True)
     sensor_config_path.write_text(
-        '[simulation]\n'
         'default_interval_seconds = 0.5\n'
         'locations = ["采煤面"]\n'
         '\n'
-        '[units]\n'
-        'gas = "%CH4"\n'
+        '[sensor_types.gas]\n'
+        'unit = "%CH4"\n'
+        'warning_threshold = 1.0\n'
+        'critical_threshold = 1.5\n'
         '\n'
         '[sensors.gas_sensor_01]\n'
         'type = "gas"\n'
@@ -168,12 +170,15 @@ def test_build_runtime_sensor_spec_uses_config_defaults() -> None:
     """运行时传感器规格应使用配置中的默认值。"""
     spec = MODULE.build_runtime_sensor_spec(
         {
-            'simulation': {
-                'default_interval_seconds': 0.5,
-                'locations': ['采煤面', '回风巷'],
+            'default_interval_seconds': 0.5,
+            'locations': ['采煤面', '回风巷'],
+            'sensor_types': {
+                'gas': {
+                    'unit': '%CH4',
+                    'warning_threshold': 1.0,
+                    'critical_threshold': 1.5,
+                },
             },
-            'units': {'gas': '%CH4'},
-            'thresholds': {'gas': {'warning': 1.0, 'critical': 1.5}},
         },
         ['gas_sensor_01', 'temperature_sensor_01'],
         psk_hex='aa' * 32,
@@ -197,12 +202,15 @@ def test_build_runtime_sensor_spec_accepts_overrides() -> None:
     """运行时传感器规格应允许覆盖位置和采样间隔。"""
     spec = MODULE.build_runtime_sensor_spec(
         {
-            'simulation': {
-                'default_interval_seconds': 0.5,
-                'locations': ['采煤面'],
+            'default_interval_seconds': 0.5,
+            'locations': ['采煤面'],
+            'sensor_types': {
+                'temperature': {
+                    'unit': '°C',
+                    'warning_threshold': 45.0,
+                    'critical_threshold': 60.0,
+                },
             },
-            'units': {'temperature': '°C'},
-            'thresholds': {'temperature': {'warning': 45.0, 'critical': 60.0}},
         },
         ['temperature_sensor_01'],
         sensor_type='temperature',
@@ -241,11 +249,15 @@ def test_launcher_state_add_runtime_sensor_updates_runtime_config(tmp_path: Path
         web_port=8000,
         runtime_psk_map={'gas_sensor_01': '11' * 32},
         sensor_config_data={
-            'simulation': {
-                'default_interval_seconds': 0.5,
-                'locations': ['采煤面'],
+            'default_interval_seconds': 0.5,
+            'locations': ['采煤面'],
+            'sensor_types': {
+                'gas': {
+                    'unit': '%CH4',
+                    'warning_threshold': 1.0,
+                    'critical_threshold': 1.5,
+                },
             },
-            'units': {'gas': '%CH4'},
             'sensors': {
                 'gas_sensor_01': {
                     'type': 'gas',
@@ -254,7 +266,6 @@ def test_launcher_state_add_runtime_sensor_updates_runtime_config(tmp_path: Path
                     'interval_seconds': 0.5,
                 },
             },
-            'thresholds': {'gas': {'warning': 1.0, 'critical': 1.5}},
         },
     )
     spec = MODULE.RuntimeSensorSpec(

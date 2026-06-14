@@ -8,3 +8,5 @@
   跨平台一键启动器，可组合启动 Broker、地面中心、传感器和本地监控页。
 - `start_system.bat`
   Windows 下的一键启动入口，等价于运行 `python scripts\start_system.py --all --web`。
+- `run_performance_tests.py`
+  运行性能测试并导出报告用柱状图，默认输出到 `performance_outputs/`，会生成 `performance_results.csv`、`performance_summary.json`、`latency_by_encryption.png` 和 `throughput_by_sensor_count.png`。

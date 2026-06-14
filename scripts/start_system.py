@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import copy
 import json
 import mimetypes
 import os
@@ -31,8 +30,12 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from mine_sensor_secure_comm.config_loader import (  # noqa: E402
+    load_default_interval_seconds,
+    load_location_list,
     load_psk_map,
     load_sensor_config,
+    load_sensor_type_map,
+    load_threshold_map,
 )
 from mine_sensor_secure_comm.log_records import LogRecorder  # noqa: E402
 
@@ -86,9 +89,10 @@ def load_sensor_catalog(sensor_config_path: Path) -> dict[str, dict[str, Any]]:
     sensors = payload.get('sensors', {})
     if not isinstance(sensors, dict):
         raise ValueError(f"invalid sensors section in {sensor_config_path}")
-    thresholds = payload.get('thresholds', {})
-    if not isinstance(thresholds, dict):
-        thresholds = {}
+    thresholds = load_threshold_map(
+        payload,
+        config_path=sensor_config_path,
+    )
 
     catalog: dict[str, dict[str, Any]] = {}
     for sensor_id, sensor in sensors.items():
@@ -136,26 +140,24 @@ def build_runtime_sensor_spec(
         rng: 可选的随机数生成器，用于确定性测试。
     """
     selected_type = str(sensor_type)
-    simulation = _runtime_table(sensor_config, 'simulation')
-    units = _runtime_table(sensor_config, 'units')
-    thresholds = _runtime_table(sensor_config, 'thresholds')
-    sensor_thresholds = thresholds.get(selected_type, {})
-    if not isinstance(sensor_thresholds, dict):
-        sensor_thresholds = {}
+    sensor_types = load_sensor_type_map(sensor_config)
+    sensor_type_config = sensor_types.get(selected_type)
+    if sensor_type_config is None:
+        raise ValueError(f"sensor type {selected_type} missing")
+    sensor_thresholds = load_threshold_map(sensor_config).get(selected_type, {})
 
-    selected_location = location or _choose_runtime_location(simulation, rng)
+    selected_location = location or _choose_runtime_location(sensor_config, rng)
     selected_interval = (
         _runtime_positive_float(interval_seconds, 'interval_seconds')
         if interval_seconds is not None
-        else _runtime_positive_float(
-            simulation.get('default_interval_seconds'),
-            'simulation.default_interval_seconds',
+        else load_default_interval_seconds(
+            sensor_config,
         )
     )
     selected_psk = psk_hex or secrets.token_hex(RUNTIME_PSK_BYTES)
     _validate_runtime_psk(selected_psk)
 
-    selected_unit = units.get(selected_type)
+    selected_unit = sensor_type_config.get('unit')
     if not isinstance(selected_unit, str):
         raise ValueError(f"unit for {selected_type} missing")
 
@@ -196,15 +198,11 @@ def _runtime_table(config: dict[str, Any], name: str) -> dict[str, Any]:
 
 
 def _choose_runtime_location(
-        simulation: dict[str, Any],
+        sensor_config: dict[str, Any],
         rng: random.Random | None,
 ) -> str:
     """从配置候选位置中选择一个运行时传感器位置。"""
-    locations = simulation.get('locations')
-    if not isinstance(locations, list) or not locations:
-        raise ValueError('simulation.locations must be a non-empty list')
-    if not all(isinstance(item, str) for item in locations):
-        raise ValueError('simulation.locations must contain only strings')
+    locations = load_location_list(sensor_config)
     chooser = rng if rng is not None else random
     return chooser.choice(locations)
 
@@ -272,24 +270,24 @@ def prepare_runtime_paths(log_path: Path, started_at: float) -> tuple[Path, Path
 def write_runtime_sensor_config(config: dict[str, Any], output_path: Path) -> None:
     """把运行时传感器配置写入 TOML 文件。"""
     lines: list[str] = []
-    simulation = config.get('simulation', {})
-    if isinstance(simulation, dict):
-        lines.extend(_serialize_toml_table('simulation', simulation))
-    units = config.get('units', {})
-    if isinstance(units, dict):
-        lines.extend(_serialize_toml_table('units', units))
+    for key in ('default_interval_seconds', 'locations'):
+        value = config.get(key)
+        if value is not None:
+            lines.append(f"{key} = {_toml_literal(value)}")
+    if lines:
+        lines.append('')
+
+    sensor_types = config.get('sensor_types', {})
+    if isinstance(sensor_types, dict):
+        for sensor_type, sensor_type_config in sensor_types.items():
+            if isinstance(sensor_type_config, dict):
+                lines.extend(_serialize_toml_table(f"sensor_types.{sensor_type}", sensor_type_config))
 
     sensors = config.get('sensors', {})
     if isinstance(sensors, dict):
         for sensor_id, sensor in sensors.items():
             if isinstance(sensor, dict):
                 lines.extend(_serialize_toml_table(f"sensors.{sensor_id}", sensor))
-
-    thresholds = config.get('thresholds', {})
-    if isinstance(thresholds, dict):
-        for sensor_type, sensor_thresholds in thresholds.items():
-            if isinstance(sensor_thresholds, dict):
-                lines.extend(_serialize_toml_table(f"thresholds.{sensor_type}", sensor_thresholds))
 
     mqtt = config.get('mqtt', {})
     if isinstance(mqtt, dict):
@@ -461,11 +459,17 @@ class LauncherState:
             'client_key': f"certs/{spec.sensor_id}.key",
         }
 
-        thresholds = self.sensor_config_data.setdefault('thresholds', {})
-        if not isinstance(thresholds, dict):
-            raise ValueError('invalid thresholds section')
-        if spec.thresholds and spec.sensor_type not in thresholds:
-            thresholds[spec.sensor_type] = copy.deepcopy(spec.thresholds)
+        sensor_types = self.sensor_config_data.setdefault('sensor_types', {})
+        if not isinstance(sensor_types, dict):
+            raise ValueError('invalid sensor_types section')
+        if spec.sensor_type not in sensor_types:
+            sensor_types[spec.sensor_type] = {
+                'unit': spec.unit,
+            }
+            if 'warning' in spec.thresholds:
+                sensor_types[spec.sensor_type]['warning_threshold'] = spec.thresholds['warning']
+            if 'critical' in spec.thresholds:
+                sensor_types[spec.sensor_type]['critical_threshold'] = spec.thresholds['critical']
 
         write_runtime_sensor_config(self.sensor_config_data, Path(self.sensor_config))
         write_runtime_psk_map(self.runtime_psk_map, Path(self.psk_config))
