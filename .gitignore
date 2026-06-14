@@ -87,3 +87,6 @@ captures/
 coverage.xml
 *.prof
 *.perf
+
+# Deprecated files
+Deprecated/
