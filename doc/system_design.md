@@ -35,7 +35,7 @@
 
 ## 3. 总体架构
 
-系统由传感器节点、MQTT Broker、地面中心和测试工具四类模块组成。
+系统核心链路由传感器节点、MQTT Broker 和地面中心组成；当前仓库另外提供本地启动器/控制台与测试工具，方便在单机环境中演示和验证整套流程。
 
 ```mermaid
 flowchart LR
@@ -65,37 +65,47 @@ flowchart LR
 | --- | --- |
 | 传感器节点 | 生成模拟数据、维护序列号、加密载荷、发布 MQTT 消息、配置 Last Will |
 | Mosquitto Broker | 监听 8883 端口、执行 TLS 握手、验证客户端证书、按主题转发消息 |
-| 地面中心 | 订阅数据与状态主题、验证节点身份、抗重放检测、解密数据、告警输出 |
+| 地面中心 | 订阅数据与状态主题、按登记配置验证 `sensor_id` / `sensor_type`、抗重放检测、解密数据、告警输出 |
+| 本地启动器与控制台 | 管理 Broker / center / sensor 子进程，提供 `/api/status` 和静态控制台页面 |
 | 测试工具 | 复制历史消息、伪造身份、统计延迟、输出测试结果 |
 
-### 3.2 推荐目录结构
+### 3.2 当前仓库目录结构
 
-后续实现建议采用以下目录结构：
+当前仓库的主要目录如下：
 
 ```text
 .
-├── certs/
-│   ├── ca.crt
-│   ├── broker.crt
-│   ├── broker.key
-│   ├── sensor_01.crt
-│   └── sensor_01.key
 ├── config/
 │   ├── mosquitto.conf
 │   ├── sensors.toml
+│   ├── psk.json.example
 │   └── psk.json
 ├── doc/
+│   ├── deployment.md
 │   └── system_design.md
+├── scripts/
+│   ├── start_system.py
+│   ├── start_mosquitto.sh
+│   └── generate_certs.sh
 ├── src/
-│   ├── center.py
-│   ├── crypto_utils.py
-│   ├── replay_guard.py
-│   ├── sensor_node.py
-│   └── topic.py
+│   └── mine_sensor_secure_comm/
+│       ├── center.py
+│       ├── center_core.py
+│       ├── crypto_utils.py
+│       ├── mqtt_runtime.py
+│       ├── replay_guard.py
+│       ├── sensor_cli.py
+│       ├── sensor_node.py
+│       └── log_records.py
+├── web/
+│   ├── index.html
+│   ├── app.js
+│   └── style.css
 └── tests/
     ├── test_crypto_utils.py
+    ├── test_center_core.py
     ├── test_replay_guard.py
-    └── test_message_validation.py
+    └── test_start_system.py
 ```
 
 ## 4. MQTT 主题设计
@@ -264,7 +274,7 @@ nonce = boot_random_64bit || seq_32bit
 
 处理规则：
 
-1. 若证书身份、PSK 身份与 `sensor_id` 不匹配，丢弃。
+1. 若 `sensor_id` 未登记，或集成层显式提供的证书身份与 `sensor_id` 不匹配，则丢弃。
 2. 若 $|t_{recv}-t_{msg}| > 300s$，丢弃并记录 `timestamp_out_of_window`。
 3. 若 `seq` 已存在于 `recent_seq_set`，丢弃并记录 `replay_detected`。
 4. 若 `seq <= last_seq` 且不在允许乱序窗口内，丢弃并记录 `sequence_rollback`。
@@ -291,7 +301,7 @@ version || sensor_id || sensor_type || seq || timestamp_ms
 | `temperature_threshold_exceeded` | 温度超过阈值 | 中 |
 | `replay_detected` | 序列号重复或历史消息重放 | 高 |
 | `timestamp_out_of_window` | 时间戳超出 5 分钟窗口 | 中 |
-| `identity_mismatch` | 证书/PSK 身份与消息身份不一致 | 高 |
+| `identity_mismatch` | `sensor_type` 与登记配置不一致，或集成层显式提供的证书身份与消息身份不一致 | 高 |
 | `decrypt_failed` | GCM 标签校验失败或解密失败 | 高 |
 | `sensor_offline` | Last Will 触发离线消息 | 高 |
 
@@ -303,12 +313,10 @@ version || sensor_id || sensor_type || seq || timestamp_ms
 [thresholds.gas]
 warning = 1.0
 critical = 1.5
-unit = "%LEL"
 
 [thresholds.temperature]
 warning = 45.0
 critical = 60.0
-unit = "C"
 ```
 
 实际阈值需要结合课程要求、矿井安全规程或实验环境设定。
@@ -408,7 +416,7 @@ $$
 | 场景 | 预期 |
 | --- | --- |
 | 使用无效客户端证书连接 Broker | TLS 握手失败 |
-| 使用合法证书但伪造其他 `sensor_id` | 地面中心记录 `identity_mismatch` |
+| 使用合法证书但伪造其他 `sensor_id` | Broker 先负责证书接入控制；若后续集成层提供证书身份，地面中心应记录 `identity_mismatch` |
 | 使用错误 PSK 加密 payload | 地面中心 AES-GCM 解密失败 |
 | 使用未登记 `sensor_id` 发布消息 | 地面中心丢弃并记录未知节点 |
 

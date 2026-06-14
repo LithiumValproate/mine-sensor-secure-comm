@@ -1,6 +1,6 @@
 # 基于 MQTT over TLS 的矿井传感安全通信系统
 
-本仓库实现一个课程原型：多个 Python 传感器节点通过 Mosquitto Broker 使用 MQTT over mTLS 上报温度、瓦斯浓度等数据，地面中心完成身份验证、应用层解密、抗重放检测、异常告警和性能统计。
+本仓库实现一个课程原型：多个 Python 传感器节点通过 Mosquitto Broker 使用 MQTT over mTLS 上报温度、瓦斯浓度等数据，地面中心完成身份校验、应用层解密、抗重放检测、异常告警和性能统计；仓库同时提供本地一键启动器和控制台，便于演示整条链路。
 
 ## 项目目标
 
@@ -15,7 +15,7 @@
 ## 环境要求
 
 - 推荐 Python 3.12。
-- 支持 Python 3.11、3.12、3.13。
+- 支持 Python 3.11、3.12、3.13；`pyproject.toml` 当前约束为 `>=3.11,<3.14`。
 - Mosquitto Broker，需支持 TLS。
 - OpenSSL，用于生成本地测试证书。
 
@@ -65,8 +65,9 @@ Windows、Linux 和 macOS 的完整本地部署说明见 [doc/deployment.md](doc
    Run.bat
    ```
 
-   默认会启动 Mosquitto、地面中心、`config/sensors.toml` 中的全部传感器，以及本地控制台 `http://127.0.0.1:8000`。如果敏感配置或 Mosquitto 正式配置文件不存在，启动器会自动回退到 `config/psk.json.example` 和 `config/mosquitto.conf.example`。
-   启动器会将最近日志提供给控制台，并默认追加写入 `logs/launcher.jsonl`；如需改位置可传入 `--log-file`。
+   默认会启动 Mosquitto、地面中心、`config/sensors.toml` 中的全部传感器，以及本地控制台 `http://127.0.0.1:8000`。启动器会先把运行时使用的 `sensors.toml`、`psk.json` 和 `mosquitto.conf` 复制到本次会话目录，再从该目录启动各个子进程。
+   `--sensor-config` 和 `--psk-config` 指向的正式文件不存在时，启动器会尝试使用同名 `.example` 文件；当前仓库默认提供的是 `config/psk.json.example`。`--mosquitto-config` 不做 `.example` 回退，默认直接读取 `config/mosquitto.conf`。
+   启动器会把最近日志暴露给控制台，并默认写入 `logs/<启动时间>/launcher.jsonl`；如需改路径可传入 `--log-file`，实际文件仍会落在对应的会话目录下。
 
 5. 或者手动启动 Mosquitto：
 
@@ -133,15 +134,15 @@ mine-bench --psk-config config/psk.json --count 1000
 
 | 文件 | 说明 |
 | --- | --- |
-| `config/sensors.toml` | 传感器列表、类型、单位、位置、上报间隔、证书路径和阈值 |
-| `config/psk.json` | 传感器 ID 到 PSK 的映射，属于敏感配置 |
-| `config/mosquitto.conf.example` | Mosquitto mTLS 示例配置 |
+| `config/sensors.toml` | 传感器列表、类型、单位、位置、上报间隔、证书路径、阈值和 MQTT 连接参数 |
+| `config/psk.json.example` | PSK 配置示例；复制为 `config/psk.json` 后可直接运行 |
+| `config/mosquitto.conf` | Mosquitto mTLS 本地配置 |
 | `certs/` | 本地测试 CA、Broker、中心和传感器证书 |
-| `logs/launcher.jsonl` | 一键启动器运行日志，默认不提交 |
+| `logs/<启动时间>/launcher.jsonl` | 一键启动器单次运行日志，默认不提交 |
 | `web/` | 本地控制台静态页面，由 `scripts/start_system.py --web` 提供 |
 | `Run.sh` / `Run.bat` | 一键启动整套演示环境 |
 
-仓库提交默认的 `config/sensors.toml` 和非敏感 `.example` 示例配置。实际运行时需要复制并按环境修改敏感配置，不应提交真实密钥或私钥。
+仓库提交默认的 `config/sensors.toml`、`config/mosquitto.conf` 和非敏感 `.example` 示例配置。实际运行时需要复制并按环境修改敏感配置，不应提交真实密钥或私钥。
 
 ## 安全说明
 
@@ -150,6 +151,7 @@ mine-bench --psk-config config/psk.json --count 1000
 - AES-GCM nonce 使用 64 位启动随机数加 32 位序列号，避免同一密钥下重复。
 - 外层消息中的 `sensor_id`、`sensor_type`、`seq` 和 `timestamp_ms` 会作为 AES-GCM AAD 参与认证，篡改后解密应失败。
 - 地面中心默认使用 5 分钟时间窗口检测过期或超前消息。
+- Broker 负责 mTLS 接入控制；当前默认运行路径下，应用层拿不到对端证书 CN，因此仓库中的运行时身份校验主要依赖已登记的 `sensor_id`、`sensor_type` 和对应 PSK。
 
 ## 常见问题
 
@@ -161,7 +163,7 @@ Windows 下 `scripts\start_mosquitto.bat` 会优先从 `PATH` 查找 `mosquitto.
 
 ### 控制台页面无法连接
 
-如果页面提示“未连接到启动器”，说明当前只是静态打开了 `web/index.html`，或者 `scripts/start_system.py --web` 没有运行。建议直接使用 `Run.bat`、`Run.sh` 或：
+如果页面提示“未连接到启动器”，说明当前只是静态打开了 `web/index.html`，或者 `scripts/start_system.py --web` 没有运行。控制台主数据源是 `GET /api/status`，`/api/sensors` 仅用于兼容旧前端形状。建议直接使用 `Run.bat`、`Run.sh` 或：
 
 ```bash
 python3 scripts/start_system.py --all --web
@@ -169,7 +171,7 @@ python3 scripts/start_system.py --all --web
 
 ### 客户端连接被拒绝
 
-确认已运行对应平台的证书生成脚本（macOS / Linux 为 `./scripts/generate_certs.sh`，Windows 为 `scripts\generate_certs.bat`），并检查 `config/sensors.toml` 中的证书路径是否存在。mTLS 模式下，传感器和地面中心都必须使用由同一 CA 签发的客户端证书。
+确认已运行对应平台的证书生成脚本（macOS / Linux 为 `./scripts/generate_certs.sh`，Windows 为 `scripts\generate_certs.bat`），并检查 `config/sensors.toml` 中的证书路径是否存在。mTLS 模式下，传感器和地面中心都必须使用由同一 CA 签发的客户端证书；Broker 会先在接入层拒绝不合法证书。
 
 ### 地面中心解密失败
 

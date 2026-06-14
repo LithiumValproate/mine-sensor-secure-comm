@@ -164,7 +164,7 @@ Windows PowerShell：
 Copy-Item config\psk.json.example config\psk.json
 ```
 
-传感器配置默认使用仓库内的 `config/sensors.toml`，包含三部分：
+传感器配置默认使用仓库内的 `config/sensors.toml`，包含以下几部分：
 
 | 配置段 | 说明 |
 | --- | --- |
@@ -199,7 +199,7 @@ Windows PowerShell 如果 `mosquitto` 不在 `PATH` 中，可以运行：
 scripts\start_mosquitto.bat
 ```
 
-脚本默认优先读取 `config/mosquitto.conf`；如果该文件不存在，则回退到 `config/mosquitto.conf.example`。
+脚本默认读取 `config/mosquitto.conf`。当前仓库没有为 Mosquitto 配置提供 `.example` 回退文件，因此该文件需要真实存在。
 
 示例配置会监听 `8883` 端口，并启用 mTLS：
 
@@ -248,7 +248,9 @@ python3 scripts/start_system.py --all --web
 - 按 `config/sensors.toml` 启动全部传感器
 - 打开本地控制台 `http://127.0.0.1:8000`
 
-如果敏感配置或 Mosquitto 正式配置文件不存在，启动器会自动回退到对应的 `.example` 文件，因此新环境也可以先直接跑通演示，再按需复制正式配置。
+启动器会先把本次运行需要的 `sensors.toml`、`psk.json` 和 `mosquitto.conf` 复制到新的运行目录，再从该目录启动子进程。默认日志文件是 `logs/<启动时间>/launcher.jsonl`。
+
+`--sensor-config` 和 `--psk-config` 指向的正式文件不存在时，启动器会尝试使用同名 `.example` 文件；当前仓库默认只有 `config/psk.json.example`。`--mosquitto-config` 不做这类回退。
 
 如果只想启动部分组件，可以组合参数，例如：
 
@@ -268,6 +270,7 @@ python3 scripts/start_system.py --center --sensor-id gas_sensor_01 --web
 | `--web-port 8080` | 修改控制台端口 |
 | `--no-browser` | 启动控制台但不自动打开浏览器 |
 | `--host` / `--port` | 覆盖 TOML 中的 MQTT 地址 |
+| `--log-file` | 指定日志文件名或路径；实际文件会写入本次运行目录 |
 
 ## 5. 启动地面中心
 
@@ -288,7 +291,7 @@ mine-center --sensor-config config\sensors.toml --psk-config config\psk.json
 - `mine/+/data`
 - `mine/+/status`
 
-收到数据后，中心会输出 JSON 结果，包括是否接受、解密后的明文和告警列表。
+收到数据后，中心会输出 JSON 结果，包括是否接受、解密后的明文和告警列表。启动器控制台轮询的主接口是 `GET /api/status`；`GET /api/sensors` 只是兼容旧前端数据结构。
 
 如果是通过一键启动器启动，控制台页面也会展示当前托管进程状态和最近日志。
 
@@ -399,6 +402,8 @@ python -m pip install -e ".[test]"
 - Broker 是否使用 `certs/broker.crt` 和 `certs/broker.key`。
 - 客户端是否使用由 `certs/ca.crt` 对应 CA 签发的证书。
 - `config/sensors.toml` 中的 `ca_file`、`center_cert`、`center_key`、`client_cert`、`client_key` 路径是否正确。
+
+需要注意：当前运行时基于 paho-mqtt 默认回调，应用层拿不到对端证书 CN。也就是说，证书是否合法由 Broker 在接入层把关，应用层再用 `sensor_id`、`sensor_type` 和 PSK 做消息级校验。
 
 ### 解密失败
 
