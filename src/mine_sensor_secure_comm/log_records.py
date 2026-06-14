@@ -31,7 +31,13 @@ class LogRecorder:
             self._load_recent_records()
 
     def append(self, source: str, line: str, *, ts: str | None = None) -> dict[str, str]:
-        """追加一条标准化日志记录。"""
+        """追加一条标准化日志记录。
+
+        Args:
+            source: 产生日志的组件名称。
+            line: 原始日志文本，会在写入前去除右侧换行。
+            ts: 可选的显示时间；未提供时使用当前本地时间。
+        """
         record = {
             'ts': ts or time.strftime('%H:%M:%S'),
             'source': str(source),
@@ -59,7 +65,11 @@ class LogRecorder:
                 self.records.append(record)
 
     def _write_record(self, record: dict[str, str]) -> None:
-        """在配置持久化路径时追加一条 JSONL 记录。"""
+        """在配置持久化路径时追加一条 JSONL 记录。
+
+        Args:
+            record: 已标准化的日志记录。
+        """
         if self.log_path is None:
             return
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -67,7 +77,11 @@ class LogRecorder:
             output.write(json.dumps(record, ensure_ascii=False) + '\n')
 
     def _normalize_record(self, payload: Any) -> dict[str, str] | None:
-        """把解码后的 JSONL 值标准化为公开日志结构。"""
+        """把解码后的 JSONL 值标准化为公开日志结构。
+
+        Args:
+            payload: 从 JSONL 文件解码出的单条值。
+        """
         if not isinstance(payload, dict):
             return None
         if not all(key in payload for key in ('ts', 'source', 'line')):

@@ -471,7 +471,11 @@ class LauncherState:
         write_runtime_psk_map(self.runtime_psk_map, Path(self.psk_config))
 
     def ingest_center_line(self, line: str) -> None:
-        """Ingest one JSON line emitted by the center process."""
+        """接收并解析地面中心输出的一行 JSON 日志。
+
+        Args:
+            line: 地面中心标准输出中的单行文本；非 JSON 行会被忽略。
+        """
         try:
             payload = json.loads(line)
         except json.JSONDecodeError:

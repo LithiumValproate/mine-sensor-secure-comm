@@ -16,7 +16,11 @@ from .sensor_sim import SensorNodeSimulator
 
 
 def main() -> int:
-    """运行一个模拟传感器节点。"""
+    """运行一个模拟传感器节点。
+
+    默认发布经过 AES-GCM 加密的业务负载；传入 `--plaintext` 时改为
+    发布仅受 TLS 保护的明文 JSON，便于做链路层性能对比。
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--sensor-id', required=True)
     parser.add_argument('--sensor-config', default='config/sensors.toml')
@@ -103,7 +107,7 @@ def main() -> int:
 
 
 def cli() -> int:
-    """Run the CLI entrypoint with user-facing error handling."""
+    """运行带用户态错误处理的 CLI 入口。"""
     try:
         return main()
     except ValueError as exc:
@@ -112,7 +116,12 @@ def cli() -> int:
 
 
 def _lookup_sensor_config(sensors: dict[str, Any], sensor_id: str) -> dict[str, Any]:
-    """读取指定传感器配置，不存在时给出明确错误。"""
+    """读取指定传感器配置，不存在时给出明确错误。
+
+    Args:
+        sensors: 按传感器 ID 组织的配置映射。
+        sensor_id: 要查找的传感器编号。
+    """
     sensor = sensors.get(sensor_id)
     if sensor is None:
         raise ValueError(f"sensor_id not found in sensor config: {sensor_id}")
@@ -122,7 +131,12 @@ def _lookup_sensor_config(sensors: dict[str, Any], sensor_id: str) -> dict[str, 
 
 
 def _lookup_sensor_psk(psk_map: dict[str, str], sensor_id: str) -> str:
-    """读取指定传感器 PSK，不存在时给出明确错误。"""
+    """读取指定传感器 PSK，不存在时给出明确错误。
+
+    Args:
+        psk_map: 按传感器 ID 组织的 PSK 十六进制字符串映射。
+        sensor_id: 要查找的传感器编号。
+    """
     psk_hex = psk_map.get(sensor_id)
     if psk_hex is None:
         raise ValueError(f"sensor_id not found in PSK config: {sensor_id}")

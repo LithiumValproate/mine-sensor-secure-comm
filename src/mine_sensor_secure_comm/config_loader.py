@@ -62,6 +62,8 @@ def load_sensor_config(path: str | Path) -> dict[str, Any]:
 
     Args:
         path: 传感器配置文件路径。
+
+    `.toml` 后缀走 TOML 解析，其余后缀按 YAML 处理。
     """
     config_path = Path(path)
     if config_path.suffix.lower() == '.toml':
