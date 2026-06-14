@@ -86,6 +86,7 @@ reports/
 results/
 captures/
 outputs/
+pictures/
 *.csv
 *.jsonl
 coverage.xml
