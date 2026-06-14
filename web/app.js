@@ -59,65 +59,47 @@ function setStatus(elementId, status) {
     element.className = `value ${isOnline ? 'status-online' : 'status-offline'}`;
 }
 
-function chooseSensor(sensors, matcher) {
-    return sensors.find((sensor) => {
-        const sensorType = String(sensor.sensor_type || '').toLowerCase();
-        const unit = String(sensor.unit || '').toLowerCase();
-        return matcher(sensorType, unit);
-    });
-}
-
-function updateTemperature(sensor) {
+function readingClass(sensor) {
     const value = Number(sensor?.value);
     if (!Number.isFinite(value)) {
-        document.getElementById('temp-value').textContent = '--';
-        document.getElementById('temp-fill').style.width = '0%';
-        return;
+        return 'muted';
     }
-
-    document.getElementById('temp-value').textContent = value.toFixed(1);
-    const percentage = ((value - 15) / 20) * 100;
-    document.getElementById('temp-fill').style.width = `${Math.min(100, Math.max(0, percentage))}%`;
-}
-
-function updateGas(sensor) {
-    const value = Number(sensor?.value);
-    const gasValueElement = document.getElementById('gas-value');
-    const gasWarningElement = document.getElementById('gas-warning');
-    const gasProgressElement = document.getElementById('gas-progress');
-
-    if (!Number.isFinite(value)) {
-        gasValueElement.textContent = '--';
-        gasValueElement.className = 'gas-value';
-        gasWarningElement.textContent = '';
-        gasWarningElement.classList.remove('show');
-        gasProgressElement.style.width = '0%';
-        return;
-    }
-
-    gasValueElement.textContent = value.toFixed(4);
-    gasValueElement.className = 'gas-value';
 
     const thresholds = sensor.thresholds || {};
-    const warning = Number(thresholds.warning ?? 0.7);
-    const critical = Number(thresholds.critical ?? 1.0);
-    if (value >= critical) {
-        gasValueElement.classList.add('danger');
-        gasWarningElement.textContent = '瓦斯浓度达到 critical 阈值';
-        gasWarningElement.classList.add('show');
-    } else if (value >= warning) {
-        gasValueElement.classList.add('warning');
-        gasWarningElement.textContent = '瓦斯浓度达到 warning 阈值';
-        gasWarningElement.classList.add('show');
-    } else {
-        gasValueElement.classList.add('normal');
-        gasWarningElement.textContent = '';
-        gasWarningElement.classList.remove('show');
+    const warning = Number(thresholds.warning);
+    const critical = Number(thresholds.critical);
+    if (Number.isFinite(critical) && value >= critical) {
+        return 'danger';
+    }
+    if (Number.isFinite(warning) && value >= warning) {
+        return 'warning';
+    }
+    return 'normal';
+}
+
+function formatSensorReading(sensor) {
+    const value = Number(sensor?.value);
+    if (!Number.isFinite(value)) {
+        return '--';
     }
 
-    const maxValue = Math.max(critical * 2, 1);
-    const percentage = (value / maxValue) * 100;
-    gasProgressElement.style.width = `${Math.min(100, Math.max(0, percentage))}%`;
+    const sensorType = String(sensor.sensor_type || '').toLowerCase();
+    const fractionDigits = sensorType.includes('gas') ? 4 : 1;
+    return `${value.toFixed(fractionDigits)}${sensor.unit || ''}`;
+}
+
+function batteryClass(sensor) {
+    const battery = Number(sensor?.battery);
+    if (!Number.isFinite(battery)) {
+        return 'muted';
+    }
+    if (battery < 20) {
+        return 'danger';
+    }
+    if (battery < 50) {
+        return 'warning';
+    }
+    return 'normal';
 }
 
 function renderSensors(sensors) {
@@ -133,21 +115,18 @@ function renderSensors(sensors) {
         .map((sensor) => {
             const status = sensor.status || 'unknown';
             const isOnline = ['online', 'running'].includes(status);
-            const statusColor = isOnline ? '#10b981' : '#ef4444';
-            const value = sensor.value === undefined || sensor.value === null
+            const readingState = readingClass(sensor);
+            const powerState = batteryClass(sensor);
+            const battery = sensor.battery === undefined || sensor.battery === null
                 ? '--'
-                : `${escapeHtml(sensor.value)}${escapeHtml(sensor.unit || '')}`;
+                : `${escapeHtml(sensor.battery)}%`;
             return `
                 <div class="sensor-item ${isOnline ? 'online' : 'offline'}" data-id="${escapeHtml(sensor.sensor_id)}">
-                    <div class="sensor-info">
-                        <div class="sensor-id">${escapeHtml(sensor.sensor_id)}</div>
-                        <div class="sensor-location">${escapeHtml(sensor.location || '未配置位置')}</div>
-                    </div>
-                    <div class="sensor-data">
-                        <div class="sensor-temp">${value}</div>
-                        <div class="sensor-gas">电量 ${escapeHtml(sensor.battery ?? '--')}%</div>
-                        <div class="sensor-status" style="color: ${statusColor}">${statusLabel(status)}</div>
-                    </div>
+                    <div class="sensor-id">${escapeHtml(sensor.sensor_id)}</div>
+                    <div class="sensor-location">${escapeHtml(sensor.location || '未配置位置')}</div>
+                    <div class="sensor-reading ${readingState}">${escapeHtml(formatSensorReading(sensor))}</div>
+                    <div class="sensor-battery ${powerState}">电量 ${battery}</div>
+                    <div class="sensor-status ${powerState}">${escapeHtml(statusLabel(status))}</div>
                 </div>
             `;
         })
@@ -274,8 +253,6 @@ async function refreshDashboard() {
         const sensors = payload.sensors || [];
         const alerts = payload.alerts || [];
         const logs = payload.logs || [];
-        const temperatureSensor = chooseSensor(sensors, (sensorType, unit) => sensorType.includes('temp') || unit === '°c');
-        const gasSensor = chooseSensor(sensors, (sensorType, unit) => sensorType.includes('gas') || unit.includes('lel') || unit === '%');
         const sensorRunning = sensors.some((sensor) => ['online', 'running'].includes(sensor.status));
 
         document.querySelector('.status-text').textContent = '已连接后端';
@@ -286,8 +263,6 @@ async function refreshDashboard() {
         setStatus('broker-status', componentStatus(payload, 'broker'));
         setStatus('center-status', componentStatus(payload, 'center'));
         setStatus('sensor-status', sensorRunning ? 'running' : componentStatus(payload, 'sensor'));
-        updateTemperature(temperatureSensor);
-        updateGas(gasSensor);
         renderSensors(sensors);
         renderLogs(logs, alerts);
         updateTestResults(payload);
@@ -301,8 +276,6 @@ async function refreshDashboard() {
         document.getElementById('seq-num').textContent = '--';
         document.getElementById('sensors-list').innerHTML = `<div class="sensors-empty">${escapeHtml(error.message)}</div>`;
         document.getElementById('log-container').innerHTML = '<div class="log-empty">请通过 scripts/start_system.py --web 启动后端</div>';
-        updateTemperature(null);
-        updateGas(null);
         updateTestResults(null);
     }
 }

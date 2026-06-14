@@ -15,7 +15,7 @@
 ## 环境要求
 
 - 推荐 Python 3.12。
-- 支持 Python 3.11、3.12、3.13；`pyproject.toml` 当前约束为 `>=3.11,<3.14`。
+- 支持 Python 3.11、3.12、3.13。
 - Mosquitto Broker，需支持 TLS。
 - OpenSSL，用于生成本地测试证书。
 
