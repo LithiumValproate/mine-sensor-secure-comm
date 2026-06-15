@@ -31,16 +31,28 @@ Windows、Linux 和 macOS 的完整本地部署说明见 [doc/deployment.md](doc
 
 2. 生成本地测试证书：
 
+   推荐使用安装后的项目命令，支持参数化输出目录、证书有效期和自定义证书条目：
+
+   ```bash
+   mine-certs --force
+   ```
+
    macOS / Linux：
 
    ```bash
-   ./scripts/generate_certs.sh
+   ./scripts/generate_certs.sh --force
    ```
 
    Windows：
 
    ```bat
-   scripts\generate_certs.bat
+   scripts\generate_certs.bat --force
+   ```
+
+   例如只生成自定义证书到临时目录：
+
+   ```bash
+   mine-certs --output-dir /tmp/mine-certs --only-custom --cert edge_node:edge-node:DNS:edge-node
    ```
 
 3. 准备敏感配置：
